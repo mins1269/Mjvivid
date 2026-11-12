@@ -1,0 +1,69 @@
+{
+  "updated_at": "2026-11-12T22:30:00+09:00",
+  "source": "Derived copy of Notion 자산 대장 + 업무함 and .claude/people.md. Notion is the source of truth. null metrics = Analyst to compute (not yet in Notion).",
+  "assets": [
+    {
+      "id": "UK-01",
+      "name": "Larchwood Trade Park",
+      "country": "UK",
+      "city": "Crawley (Manor Royal, West Sussex)",
+      "sector": "Multi-let industrial",
+      "status": "Hold",
+      "niy": null,
+      "vacancy": null,
+      "wault": null,
+      "next_event": "2026-12-24",
+      "notion_url": "https://app.notion.com/p/41623b2eba2a813d9feefe24137a09e9",
+      "territory": { "q": -9, "r": -3 }
+    },
+    {
+      "id": "UK-02",
+      "name": "Corvel Yard",
+      "country": "UK",
+      "city": "Manchester (Ancoats)",
+      "sector": "BTR",
+      "status": "Hold",
+      "niy": null,
+      "vacancy": null,
+      "wault": null,
+      "next_event": "2026-12-31",
+      "notion_url": "https://app.notion.com/p/41623b2eba2a8147a747ea77c339a1d5",
+      "territory": { "q": -11, "r": 4 }
+    },
+    {
+      "id": "KR-01",
+      "name": "Seolleung Meridian Tower 15F–16F",
+      "country": "Korea",
+      "city": "Seoul (Gangnam-gu, GBD)",
+      "sector": "Office",
+      "status": "Hold",
+      "niy": null,
+      "vacancy": null,
+      "wault": null,
+      "next_event": "2026-11-30",
+      "notion_url": "https://app.notion.com/p/41623b2eba2a81d4865fc1fa532d07ba",
+      "territory": { "q": 11, "r": -4 }
+    },
+    {
+      "id": "KR-02",
+      "name": "Hobeop Gaon Logistics Centre",
+      "country": "Korea",
+      "city": "Icheon (Hobeop-myeon, Gyeonggi)",
+      "sector": "Logistics",
+      "status": "Hold",
+      "niy": null,
+      "vacancy": null,
+      "wault": null,
+      "next_event": "2027-01-01",
+      "notion_url": "https://app.notion.com/p/41623b2eba2a810c95d4ed4bb2454a22",
+      "territory": { "q": 8, "r": 3 }
+    }
+  ],
+  "people": [
+    { "id": "jonathan-hale", "name": "Jonathan Hale", "role": "MD", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null },
+    { "id": "yoon-seo-hyun", "name": "Yoon Seo-hyun", "role": "Head of AM", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null },
+    { "id": "daniel-park", "name": "Daniel Park", "role": "Senior Associate", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null },
+    { "id": "market-desk", "name": "Market Desk", "role": "Market Desk", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null },
+    { "id": "minsung-jean", "name": "Minsung Jean", "role": "Analyst", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null }
+  ]
+}

@@ -89,3 +89,27 @@ KR-01 41623b2eba2a81d4865fc1fa532d07ba, KR-02 41623b2eba2a810c95d4ed4bb2454a22.
   tasks before then.
 - Property names in Korean; message bodies in English (UK professional register). One emoji
   max per page title. Keep every `[SRC]` / `[ASSUMED]` tag when copying from repo files.
+
+## World map
+`world/index.html` is a 3D hex-tile map of the firm (Three.js from jsDelivr, no other
+runtime downloads). It reads `world/state.json` every 60 s and animates changes.
+Published by `.github/workflows/pages.yml` (GitHub Pages, source: GitHub Actions) at
+https://mins1269.github.io/Mjvivid/
+
+- **Notion is the source of truth; `world/state.json` is a derived copy.** Never edit it
+  by hand to change the firm; change Notion, then rebuild.
+- **Every run that creates, moves, submits or reviews a task must, as its last step,
+  rebuild `world/state.json` from Notion, then commit and push to `main`.**
+- Rebuild recipe:
+  - `assets[]` from 자산 대장: id (UK-01…), name, country, city, sector, status (상태),
+    niy, vacancy (공실률), wault, next_event (다음 임대 이벤트), notion_url. Keep each
+    asset's existing `territory {q,r}` so it does not jump; new assets: omit it and the
+    page auto-places by country. Empty metrics stay `null` (= Analyst to compute).
+  - `people[]` from `.claude/people.md` (MD, Head of AM, Senior Associate, Market Desk,
+    Analyst) joined to their latest open 업무함 row: current_asset_id = the task's 자산
+    (or "HQ" if none), activity (idle / working / reviewing / submitted / rework /
+    meeting), task_title, due (마감), notion_task_url, optional assigned_by (보낸 사람).
+  - Set `updated_at` to the KST time of the rebuild.
+- Optional CC0 models: put `.glb` files in `world/assets/` with
+  `world/assets/manifest.json` = `{ "sectors": { "Office": "office.glb", … } }`.
+  Without it the page builds everything procedurally.

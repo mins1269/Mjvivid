@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jean Capital World</title>
+<meta name="description" content="Hex-tile colony map of the Jean Capital portfolio, driven by state.json (derived from Notion).">
+<style>
+  :root {
+    --bg: #f0d9b3;
+    --side: #15171c;
+    --side-2: #1d2027;
+    --side-line: #2a2e37;
+    --ink: #e9e6df;
+    --ink-dim: #9a9ca3;
+    --panel: #fbf8f2;
+    --panel-ink: #22242a;
+    --panel-dim: #6c6f76;
+    --hold: #2fbf71;
+    --review: #f2a93b;
+    --sale: #ef5a57;
+    --md: #e5484d;
+    --ham: #8e4ec6;
+    --sa: #3e63dd;
+    --mkt: #f76b15;
+    --analyst: #12a594;
+    --staff: #b8b0a2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --panel: #1f2228; --panel-ink: #eceae5; --panel-dim: #a3a6ad; }
+  }
+  :root[data-theme="dark"] { --panel: #1f2228; --panel-ink: #eceae5; --panel-dim: #a3a6ad; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg);
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; }
+  #labels { position: fixed; inset: 0; pointer-events: none; }
+
+  /* Sidebar */
+  #side { position: fixed; top: 0; left: 0; bottom: 0; width: 252px; background: var(--side); color: var(--ink);
+    display: flex; flex-direction: column; z-index: 5; box-shadow: 2px 0 18px rgba(0,0,0,.18); transition: transform .3s ease; }
+  #side header { padding: 16px 16px 12px; border-bottom: 1px solid var(--side-line); }
+  #side h1 { margin: 0; font-size: 15px; letter-spacing: .02em; font-weight: 650; }
+  #side .sub { color: var(--ink-dim); font-size: 11px; margin-top: 2px; }
+  #side h2 { margin: 0; padding: 12px 16px 6px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim); font-weight: 600; }
+  #people { list-style: none; margin: 0; padding: 0 8px; }
+  #people li { display: grid; grid-template-columns: 14px 1fr 10px; gap: 8px; align-items: center; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
+  #people li > div { min-width: 0; }
+  #people li:hover, #people li.sel { background: var(--side-2); }
+  .ring { width: 12px; height: 12px; border-radius: 50%; border: 3px solid currentColor; }
+  .pname { font-weight: 600; font-size: 12.5px; }
+  .pmeta { color: var(--ink-dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b6e75; }
+  .dot.working { background: #2fbf71; box-shadow: 0 0 6px #2fbf71; }
+  .dot.travel { background: #f2a93b; box-shadow: 0 0 6px #f2a93b; }
+  #feed { list-style: none; margin: 0; padding: 0 16px 16px; overflow-y: auto; flex: 1; }
+  #feed li { padding: 6px 0; border-bottom: 1px solid var(--side-line); font-size: 11.5px; color: #cfccc5; }
+  #feed time { color: var(--ink-dim); font-variant-numeric: tabular-nums; margin-right: 6px; }
+  #side footer { padding: 10px 16px; border-top: 1px solid var(--side-line); color: var(--ink-dim); font-size: 10.5px; }
+  #side footer a { color: var(--ink-dim); }
+
+  /* Top-right badge */
+  #badge { position: fixed; top: 14px; right: 14px; z-index: 4; background: rgba(21,23,28,.86); color: var(--ink);
+    padding: 7px 12px; border-radius: 999px; font-weight: 600; font-size: 12px; backdrop-filter: blur(6px); }
+  #badge b { color: #6fe0a6; }
+
+  /* Legend */
+  #legend { position: fixed; right: 14px; bottom: 14px; z-index: 4; background: rgba(251,248,242,.9); color: #3a3c42;
+    border-radius: 10px; padding: 8px 12px; font-size: 11.5px; box-shadow: 0 4px 16px rgba(80,50,10,.15); }
+  #legend div { display: flex; align-items: center; gap: 7px; margin: 2px 0; }
+  #legend i { width: 18px; height: 5px; border-radius: 3px; display: inline-block; }
+
+  /* Detail panel */
+  #panel { position: fixed; top: 56px; right: 14px; width: 300px; max-width: calc(100vw - 28px); z-index: 6;
+    background: var(--panel); color: var(--panel-ink); border-radius: 14px; padding: 16px 16px 14px;
+    box-shadow: 0 10px 30px rgba(60,40,10,.22); transform: translateX(120%); transition: transform .35s ease; }
+  #panel.open { transform: none; }
+  #panel h3 { margin: 0 24px 2px 0; font-size: 15px; }
+  #panel .k { color: var(--panel-dim); font-size: 11px; margin-bottom: 10px; }
+  #panel dl { display: grid; grid-template-columns: 96px 1fr; gap: 5px 10px; margin: 0 0 12px; font-size: 12px; }
+  #panel dt { color: var(--panel-dim); }
+  #panel dd { margin: 0; }
+  #panel .close { position: absolute; top: 10px; right: 12px; border: 0; background: none; font-size: 18px; color: var(--panel-dim); cursor: pointer; }
+  #panel a.btn { display: inline-block; background: #22242a; color: #fff; text-decoration: none; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 11px; font-weight: 600; }
+  .muted { color: var(--panel-dim); font-style: italic; }
+
+  /* 3D labels */
+  .plate { pointer-events: auto; cursor: pointer; background: rgba(255,255,255,.92); color: #2b2d33; border-radius: 9px;
+    padding: 4px 9px 5px; text-align: center; box-shadow: 0 3px 10px rgba(90,60,20,.18); white-space: nowrap; transform: translateY(-6px); }
+  .plate b { display: block; font-size: 12px; }
+  .plate span { font-size: 10.5px; color: #6e6a62; }
+  .plate.hq { background: #22242a; color: #fff; }
+  .plate.hq span { color: #b9bcc3; }
+  .region { font-size: 22px; font-weight: 800; letter-spacing: .28em; text-transform: uppercase; color: rgba(110,72,28,.42);
+    text-shadow: 0 1px 0 rgba(255,255,255,.4); white-space: nowrap; }
+  .stat { display: flex; align-items: center; gap: 4px; background: rgba(21,23,28,.85); color: #fff; border-radius: 999px;
+    padding: 1px 7px 1px 3px; font-size: 10px; font-weight: 600; white-space: nowrap; transform: translateY(-4px); }
+  .stat i { width: 14px; height: 14px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal; font-size: 9px; color: #111; }
+
+  #menu { display: none; position: fixed; top: 12px; left: 12px; z-index: 7; border: 0; border-radius: 10px; width: 38px; height: 38px;
+    background: var(--side); color: #fff; font-size: 18px; }
+  @media (max-width: 720px) {
+    #menu { display: block; }
+    #side { transform: translateX(-100%); width: 82vw; max-width: 300px; }
+    #side.open { transform: none; }
+    #legend { bottom: 10px; right: 10px; font-size: 10.5px; }
+    #panel { top: auto; bottom: 10px; right: 10px; left: 10px; width: auto; transform: translateY(130%); }
+    #panel.open { transform: none; }
+    .region { font-size: 15px; }
+  }
+  @media (min-width: 721px) { #stage, #labels { left: 252px; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="labels"></div>
+<button id="menu" aria-label="Menu">☰</button>
+
+<aside id="side">
+  <header>
+    <h1>Jean Capital</h1>
+    <div class="sub" id="clock">—</div>
+  </header>
+  <h2>People</h2>
+  <ul id="people"></ul>
+  <h2>Activity</h2>
+  <ul id="feed"></ul>
+  <footer>Data: <code>state.json</code>, derived from Notion · <span id="updated">—</span></footer>
+</aside>
+
+<div id="badge"><span id="nAgents">0</span> agents · <b id="nRunning">0</b> running</div>
+
+<div id="legend">
+  <div><i style="background:var(--hold)"></i>Hold</div>
+  <div><i style="background:var(--review)"></i>Under review</div>
+  <div><i style="background:var(--sale)"></i>For sale</div>
+</div>
+
+<div id="panel" aria-live="polite"><button class="close" aria-label="Close">×</button><div id="panelBody"></div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { HorizontalTiltShiftShader } from 'three/addons/shaders/HorizontalTiltShiftShader.js';
+import { VerticalTiltShiftShader } from 'three/addons/shaders/VerticalTiltShiftShader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+// ---------- constants ----------
+const IS_PHONE = matchMedia('(max-width: 720px)').matches || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820);
+const SQ3 = Math.sqrt(3);
+const HEX = 1;                    // hex radius (centre to corner)
+const TILE_H = 0.3;
+const TOP_DESERT = TILE_H / 2;
+const TOP_TERR = TOP_DESERT + 0.08;
+const STATUS_COL = { 'Hold': 0x2fbf71, 'Under review': 0xf2a93b, 'For sale': 0xef5a57 };
+const ROLE_COL = { 'MD': 0xe5484d, 'Head of AM': 0x8e4ec6, 'Senior Associate': 0x3e63dd, 'Market Desk': 0xf76b15, 'Analyst': 0x12a594 };
+const SECTOR_ACCENT = { 'Multi-let industrial': 0xf08a3c, 'Logistics': 0x3e8ed0, 'BTR': 0x2fae8f, 'PBSA': 0xa86ad8, 'Office': 0x4466d6, 'HQ': 0x12a594 };
+const DIRS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+const HQ_ID = 'HQ';
+const NOTION_HOME = 'https://app.notion.com/p/41623b2eba2a818b8163cf3fa01c5d87';
+const hexToCss = h => '#' + h.toString(16).padStart(6, '0');
+
+// ---------- utils ----------
+function hashStr(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const key = (q, r) => q + ',' + r;
+function axial(q, r) { return new THREE.Vector3(HEX * SQ3 * (q + r / 2), 0, HEX * 1.5 * r); }
+function worldToAxial(x, z) {
+  const q = (SQ3 / 3 * x - 1 / 3 * z) / HEX, r = (2 / 3 * z) / HEX;
+  let rq = Math.round(q), rr = Math.round(r), rs = Math.round(-q - r);
+  const dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs + q + r);
+  if (dq > dr && dq > ds) rq = -rr - rs; else if (dr > ds) rr = -rq - rs;
+  return [rq, rr];
+}
+const hexDist = (a, b) => (Math.abs(a[0] - b[0]) + Math.abs(a[0] + a[1] - b[0] - b[1]) + Math.abs(a[1] - b[1])) / 2;
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const nowKST = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' });
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---------- renderer / scene ----------
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+let pixelRatio = Math.min(devicePixelRatio, IS_PHONE ? 1.5 : 1.75);
+renderer.setPixelRatio(pixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+stage.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer({ element: document.getElementById('labels') });
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf0d9b3);
+scene.fog = new THREE.Fog(0xf0d9b3, 70, 150);
+
+const camera = new THREE.PerspectiveCamera(30, 1, 0.5, 400);
+camera.position.set(0, 31, 35);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 1);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.screenSpacePanning = false;
+controls.minDistance = 7;
+controls.maxDistance = 110;
+controls.maxPolarAngle = 1.18;
+controls.minPolarAngle = 0.25;
+
+scene.add(new THREE.HemisphereLight(0xfff4e2, 0xd9b07c, 1.25));
+const sun = new THREE.DirectionalLight(0xfff0d4, 2.3);
+sun.position.set(22, 40, 16);
+sun.castShadow = true;
+sun.shadow.mapSize.set(IS_PHONE ? 1024 : 2048, IS_PHONE ? 1024 : 2048);
+Object.assign(sun.shadow.camera, { left: -36, right: 36, top: 26, bottom: -26, near: 5, far: 110 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.03;
+sun.shadow.radius = 4;
+scene.add(sun);
+
+// post: tilt-shift
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const hTilt = new ShaderPass(HorizontalTiltShiftShader);
+const vTilt = new ShaderPass(VerticalTiltShiftShader);
+hTilt.uniforms.r.value = vTilt.uniforms.r.value = 0.52;
+composer.addPass(hTilt); composer.addPass(vTilt);
+composer.addPass(new OutputPass());
+let useTilt = !IS_PHONE;
+
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  renderer.setSize(w, h); composer.setSize(w, h); composer.setPixelRatio(pixelRatio);
+  labelRenderer.setSize(w, h);
+  hTilt.uniforms.h.value = 1.6 / w; vTilt.uniforms.v.value = 1.6 / h;
+}
+addEventListener('resize', resize);
+
+// ---------- materials ----------
+const M = {
+  white: new THREE.MeshStandardMaterial({ color: 0xf8f6f1, roughness: 0.55 }),
+  offwhite: new THREE.MeshStandardMaterial({ color: 0xece6da, roughness: 0.7 }),
+  glass: new THREE.MeshStandardMaterial({ color: 0x9cc6e8, roughness: 0.15, metalness: 0.3 }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x4a4d55, roughness: 0.8 }),
+  solar: new THREE.MeshStandardMaterial({ color: 0x27407a, roughness: 0.25, metalness: 0.5 }),
+  metal: new THREE.MeshStandardMaterial({ color: 0xb7b9bd, roughness: 0.4, metalness: 0.6 }),
+  crate: new THREE.MeshStandardMaterial({ color: 0xd99a55, roughness: 0.8 }),
+  crate2: new THREE.MeshStandardMaterial({ color: 0xc6844a, roughness: 0.8 }),
+  leaf: new THREE.MeshStandardMaterial({ color: 0x79c26e, roughness: 0.8, flatShading: true }),
+  leaf2: new THREE.MeshStandardMaterial({ color: 0x5fae63, roughness: 0.8, flatShading: true }),
+  trunk: new THREE.MeshStandardMaterial({ color: 0x9a6b44, roughness: 0.9 }),
+  path: new THREE.MeshStandardMaterial({ color: 0xe6d0a6, roughness: 0.95 }),
+  pad: new THREE.MeshStandardMaterial({ color: 0x8d8f95, roughness: 0.9 }),
+  rock: new THREE.MeshStandardMaterial({ color: 0xc9a77c, roughness: 1, flatShading: true }),
+};
+const accentMats = {};
+const accent = c => accentMats[c] ||= new THREE.MeshStandardMaterial({ color: c, roughness: 0.45 });
+
+// ---------- static batching (one draw call per material per territory) ----------
+class Batch {
+  constructor() { this.parts = new Map(); }
+  add(geo, mat, matrix) {
+    const g = geo.clone().applyMatrix4(matrix);
+    if (g.index) { /* keep */ }
+    if (!this.parts.has(mat)) this.parts.set(mat, []);
+    this.parts.get(mat).push(g);
+  }
+  build(group, userData) {
+    for (const [mat, geos] of this.parts) {
+      const norm = geos.map(g => g.index ? g.toNonIndexed() : g);
+      for (const g of norm) { for (const n of Object.keys(g.attributes)) if (!['position', 'normal'].includes(n)) g.deleteAttribute(n); }
+      const merged = mergeGeometries(norm, false);
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData = { ...userData };
+      group.add(mesh);
+    }
+  }
+}
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
+function mat4(x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) {
+  return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
+}
+
+// shared geometries
+const G = {
+  box: new THREE.BoxGeometry(1, 1, 1),
+  cyl: new THREE.CylinderGeometry(1, 1, 1, 24),
+  cyl6: new THREE.CylinderGeometry(1, 1, 1, 6),
+  sphere: new THREE.SphereGeometry(1, 24, 16),
+  hemi: new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+  cone: new THREE.ConeGeometry(1, 1, 7),
+  ico: new THREE.IcosahedronGeometry(1, 0),
+  torus: new THREE.TorusGeometry(1, 0.12, 8, 40),
+  halfCyl: new THREE.CylinderGeometry(1, 1, 1, 20, 1, false, -Math.PI / 2, Math.PI).rotateX(-Math.PI / 2),
+  capsule: new THREE.CapsuleGeometry(1, 1, 8, 20),
+};
+
+// ---------- props ----------
+function addTree(b, x, z, r, s = 1) {
+  b.add(G.cyl, M.trunk, mat4(x, 0.12 * s, z, 0, 0, 0, 0.05 * s, 0.24 * s, 0.05 * s));
+  if (r() < 0.5) b.add(G.cone, r() < .5 ? M.leaf : M.leaf2, mat4(x, 0.5 * s, z, 0, r() * 3, 0, 0.24 * s, 0.6 * s, 0.24 * s));
+  else b.add(G.ico, r() < .5 ? M.leaf : M.leaf2, mat4(x, 0.42 * s, z, 0, r() * 3, 0, 0.24 * s, 0.26 * s, 0.24 * s));
+}
+function addSolar(b, x, z, rot) {
+  for (let i = 0; i < 3; i++) {
+    const ox = Math.cos(rot) * (i - 1) * 0.42, oz = -Math.sin(rot) * (i - 1) * 0.42;
+    b.add(G.cyl, M.metal, mat4(x + ox, 0.09, z + oz, 0, 0, 0, 0.02, 0.18, 0.02));
+    b.add(G.box, M.solar, mat4(x + ox, 0.2, z + oz, -0.5, rot, 0, 0.38, 0.02, 0.26));
+  }
+}
+function addCrates(b, x, z, r) {
+  const n = 3 + Math.floor(r() * 3);
+  for (let i = 0; i < n; i++) {
+    const s = 0.15 + r() * 0.06, lvl = i >= 3 ? 1 : 0;
+    b.add(G.box, r() < .5 ? M.crate : M.crate2, mat4(x + (r() - .5) * 0.4, s / 2 + lvl * 0.18, z + (r() - .5) * 0.4, 0, r(), 0, s, s, s));
+  }
+}
+function addPath(b, a, c) {
+  const d = new THREE.Vector3().subVectors(c, a); const len = d.length();
+  b.add(G.box, M.path, mat4((a.x + c.x) / 2, 0.012, (a.z + c.z) / 2, 0, Math.atan2(d.x, d.z), 0, 0.3, 0.02, len));
+}
+
+// ---------- buildings by sector (local coords, y=0 = tile top) ----------
+function buildSector(b, sector, acc, r) {
+  const A = accent(acc);
+  switch (sector) {
+    case 'Multi-let industrial': {
+      b.add(G.box, M.offwhite, mat4(0, 0.04, 0, 0, 0, 0, 2.3, 0.08, 1.35));
+      for (let i = 0; i < 3; i++) {
+        const x = (i - 1) * 0.72;
+        b.add(G.box, M.white, mat4(x, 0.2, 0, 0, 0, 0, 0.66, 0.32, 1.1));
+        b.add(G.halfCyl, M.white, mat4(x, 0.36, 0, 0, 0, 0, 0.33, 0.3, 1.1));
+        b.add(G.box, A, mat4(x, 0.2, 0.56, 0, 0, 0, 0.32, 0.3, 0.03));
+        b.add(G.box, A, mat4(x, 0.67, 0, 0, 0, 0, 0.06, 0.03, 1.12));
+      }
+      return { radius: 1.3, height: 0.8 };
+    }
+    case 'Logistics': {
+      b.add(G.box, M.white, mat4(0, 0.22, -0.15, 0, 0, 0, 2.3, 0.44, 1.2));
+      b.add(G.halfCyl, M.white, mat4(0, 0.44, -0.15, 0, Math.PI / 2, 0, 0.6, 0.45, 2.3));
+      b.add(G.box, A, mat4(0, 0.9, -0.15, 0, 0, 0, 2.32, 0.04, 0.12));
+      for (let i = 0; i < 4; i++) {
+        const x = (i - 1.5) * 0.52;
+        b.add(G.box, A, mat4(x, 0.17, 0.46, 0, 0, 0, 0.32, 0.3, 0.03));
+        b.add(G.box, M.pad, mat4(x, 0.015, 0.78, 0, 0, 0, 0.36, 0.03, 0.5));
+      }
+      return { radius: 1.35, height: 1.1, trucks: true };
+    }
+    case 'BTR': {
+      const tiers = [[5, 0.95, 0.42], [4, 0.62, 0.38], [1, 0, 0.36]];
+      let y = 0.3;
+      tiers.forEach(([n, rad, s], ti) => {
+        for (let i = 0; i < n; i++) {
+          const a = i / n * Math.PI * 2 + ti * 0.6;
+          const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
+          b.add(G.sphere, M.white, mat4(x, y, z, 0, 0, 0, s, s * 0.82, s));
+          b.add(G.torus, A, mat4(x, y, z, Math.PI / 2, 0, 0, s * 0.98, s * 0.98, 0.6));
+          b.add(G.cyl, M.glass, mat4(x + Math.cos(a) * s * 0.9, y + 0.05, z + Math.sin(a) * s * 0.9, 0, -a, Math.PI / 2, 0.09, 0.03, 0.09));
+        }
+        y += 0.5;
+      });
+      b.add(G.cyl, M.offwhite, mat4(0, 0.6, 0, 0, 0, 0, 0.18, 1.2, 0.18));
+      return { radius: 1.45, height: 1.7 };
+    }
+    case 'PBSA': {
+      b.add(G.torus, M.white, mat4(0, 0.38, 0, Math.PI / 2, 0, 0, 1, 1, 5.5));
+      b.add(G.torus, A, mat4(0, 0.5, 0, Math.PI / 2, 0, 0, 1.13, 1.13, 0.5));
+      b.add(G.cyl, M.path, mat4(0, 0.02, 0, 0, 0, 0, 0.7, 0.03, 0.7));
+      addTree(b, 0, 0, r, 0.9);
+      return { radius: 1.35, height: 0.8 };
+    }
+    case 'Office': {
+      b.add(G.cyl, M.offwhite, mat4(0, 0.08, 0, 0, 0, 0, 0.9, 0.16, 0.9));
+      b.add(G.capsule, M.white, mat4(0, 1.75, 0, 0, 0, 0, 0.5, 2.4, 0.5));
+      for (let i = 0; i < 6; i++) b.add(G.torus, i % 2 ? M.glass : A, mat4(0, 0.85 + i * 0.42, 0, Math.PI / 2, 0, 0, 0.505, 0.505, 0.45));
+      b.add(G.cyl, A, mat4(0, 3.55, 0, 0, 0, 0, 0.03, 0.5, 0.03));
+      b.add(G.sphere, A, mat4(0, 3.82, 0, 0, 0, 0, 0.07, 0.07, 0.07));
+      return { radius: 1.0, height: 4.0 };
+    }
+    case 'HQ': {
+      b.add(G.cyl, M.offwhite, mat4(0, 0.06, 0, 0, 0, 0, 2.3, 0.12, 2.3));
+      b.add(G.hemi, M.white, mat4(0, 0.1, 0, 0, 0, 0, 2.0, 1.75, 2.0));
+      b.add(G.torus, A, mat4(0, 0.55, 0, Math.PI / 2, 0, 0, 1.92, 1.92, 0.9));
+      b.add(G.torus, M.glass, mat4(0, 1.05, 0, Math.PI / 2, 0, 0, 1.68, 1.68, 0.7));
+      b.add(G.box, A, mat4(0, 0.35, 1.95, 0, 0, 0, 0.6, 0.5, 0.18));
+      b.add(G.cyl, M.metal, mat4(0, 2.1, 0, 0, 0, 0, 0.04, 0.6, 0.04));
+      return { radius: 2.25, height: 2.6 };
+    }
+    default: {
+      b.add(G.box, M.white, mat4(0, 0.4, 0, 0, 0, 0, 1.4, 0.8, 1.0));
+      return { radius: 1.1, height: 1 };
+    }
+  }
+}
+
+// ---------- optional CC0 models (world/assets/manifest.json) ----------
+// Format: { "sectors": { "Office": "office.glb", ... }, "scale": { "Office": 1.0 } }
+let MODELS = {};
+async function loadModels() {
+  try {
+    const res = await fetch('assets/manifest.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const man = await res.json();
+    const loader = new GLTFLoader();
+    await Promise.all(Object.entries(man.sectors || {}).map(async ([sector, file]) => {
+      const gltf = await loader.loadAsync('assets/' + file);
+      const obj = gltf.scene;
+      const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3());
+      const s = (man.scale?.[sector] ?? 1) * 2.4 / Math.max(size.x, size.z);
+      obj.scale.setScalar(s); obj.position.y = -box.min.y * s;
+      obj.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+      MODELS[sector] = obj;
+    }));
+  } catch (e) { /* procedural fallback */ }
+}
+
+// ---------- ground ----------
+const territories = new Map();     // id -> Territory
+const tileOwner = new Map();       // "q,r" -> territory id
+const GRID = { rMin: -20, rMax: 20, xMax: 44 };
+let groundMesh, groundKeys = [];
+const groundColA = new THREE.Color(0xecd2a0), groundColB = new THREE.Color(0xdcb27b), terrCol = new THREE.Color(0xf4e6c8), pathCol = new THREE.Color(0xf8eedb);
+
+function terrainNoise(x, z) {
+  return 0.5 + 0.25 * Math.sin(x * 0.17 + 1.3) * Math.cos(z * 0.21 - 0.4) + 0.15 * Math.sin((x + z) * 0.11) + 0.1 * Math.cos(x * 0.43 - z * 0.37);
+}
+function buildGround() {
+  if (groundMesh) { scene.remove(groundMesh); groundMesh.geometry.dispose(); }
+  const cells = [];
+  for (let r = GRID.rMin; r <= GRID.rMax; r++) for (let q = -40; q <= 40; q++) {
+    const p = axial(q, r); if (Math.abs(p.x) <= GRID.xMax) cells.push([q, r, p]);
+  }
+  const geo = new THREE.CylinderGeometry(HEX * 0.93, HEX * 0.99, TILE_H, 6);
+  groundMesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.95 }), cells.length);
+  groundMesh.receiveShadow = true;
+  groundKeys = [];
+  const c = new THREE.Color();
+  cells.forEach(([q, r, p], i) => {
+    const k = key(q, r), owner = tileOwner.get(k);
+    const terr = owner && territories.get(owner);
+    let y = 0, col;
+    if (terr) {
+      y = TOP_TERR - TOP_DESERT;
+      col = terr.pathTiles.has(k) ? pathCol : terrCol;
+      c.copy(col).lerp(groundColA, 0.08);
+    } else {
+      const n = terrainNoise(p.x, p.z);
+      y = (n - 0.5) * 0.08;
+      c.copy(groundColA).lerp(groundColB, THREE.MathUtils.clamp(n * 1.1 - 0.15 + Math.abs(p.x) * 0.006, 0, 1));
+    }
+    groundMesh.setMatrixAt(i, mat4(p.x, y, p.z));
+    groundMesh.setColorAt(i, c);
+    groundKeys.push(k);
+  });
+  groundMesh.instanceMatrix.needsUpdate = true; groundMesh.instanceColor.needsUpdate = true;
+  groundMesh.userData.ground = true;
+  scene.add(groundMesh);
+}
+const base = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0xdcb57f, roughness: 1 }));
+base.rotation.x = -Math.PI / 2; base.position.y = -0.12; base.receiveShadow = true; scene.add(base);
+
+// rocks scattered on desert tiles
+function buildRocks() {
+  const r = rng(7), n = IS_PHONE ? 120 : 260;
+  const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), M.rock, n);
+  rocks.castShadow = true; rocks.receiveShadow = true;
+  const c = new THREE.Color(); let i = 0, guard = 0;
+  while (i < n && guard++ < 5000) {
+    const x = (r() - .5) * GRID.xMax * 2, z = (r() - .5) * 52;
+    const [q, rr] = worldToAxial(x, z);
+    if (tileOwner.has(key(q, rr))) continue;
+    let near = false; for (const d of DIRS) if (tileOwner.has(key(q + d[0], rr + d[1]))) near = true;
+    if (near && r() < .7) continue;
+    const s = 0.06 + Math.pow(r(), 3) * 0.3;
+    rocks.setMatrixAt(i, mat4(x, TOP_DESERT + s * 0.3, z, r() * 3, r() * 3, r() * 3, s * (1 + r() * .6), s * 0.6, s));
+    rocks.setColorAt(i, c.setHSL(0.08 + r() * 0.02, 0.35 + r() * 0.1, 0.62 + r() * 0.12));
+    i++;
+  }
+  rocks.count = i; scene.add(rocks);
+}
+
+// ---------- territories ----------
+class Territory {
+  constructor(data, isHQ = false) {
+    this.id = isHQ ? HQ_ID : data.id;
+    this.data = data; this.isHQ = isHQ;
+    this.center = [data.territory.q, data.territory.r];
+    this.centerPos = axial(...this.center); this.centerPos.y = TOP_TERR;
+    const r = rng(hashStr(this.id));
+    this.r = r;
+    // tiles: centre + ring1 + some ring2 (HQ takes full ring2)
+    const ring2 = [];
+    for (let dq = -2; dq <= 2; dq++) for (let dr = -2; dr <= 2; dr++) if (hexDist([0, 0], [dq, dr]) === 2) ring2.push([dq, dr]);
+    const extra = isHQ ? 12 : 3 + Math.floor(r() * 3);
+    ring2.sort(() => r() - .5);
+    const rel = [[0, 0], ...DIRS, ...ring2.slice(0, extra)];
+    this.tiles = rel.map(([dq, dr]) => [this.center[0] + dq, this.center[1] + dr]);
+    this.tileSet = new Set(this.tiles.map(t => key(...t)));
+    this.minRing = isHQ ? 2 : 1;
+    this.walk = this.tiles.filter(t => hexDist(t, this.center) >= this.minRing);
+    this.pathTiles = new Set();
+    for (const k of this.tileSet) tileOwner.set(k, this.id);
+    this.group = new THREE.Group(); this.group.position.copy(this.centerPos);
+    this.status = data.status || 'Hold';
+    this.color = new THREE.Color(isHQ ? 0x12a594 : (STATUS_COL[this.status] ?? 0x999999));
+    this.targetColor = this.color.clone();
+    this.vehicles = [];
+    this.build();
+    scene.add(this.group);
+  }
+  tilePos(t) { const p = axial(...t); p.y = TOP_TERR; return p; }
+  local(t) { return this.tilePos(t).sub(this.centerPos); }
+  build() {
+    const r = this.r, b = new Batch();
+    const sector = this.isHQ ? 'HQ' : this.data.sector;
+    const acc = SECTOR_ACCENT[sector] ?? 0x888888;
+    let info;
+    if (MODELS[sector]) { const m = MODELS[sector].clone(); this.group.add(m); info = { radius: 1.3, height: 1.5 }; }
+    else info = buildSector(b, sector, acc, r);
+    this.info = info;
+    // prop tiles
+    const ringTiles = this.walk.slice().sort(() => r() - .5);
+    this.pois = { crates: [], solar: [], trees: [] };
+    const kinds = ['crates', 'solar', 'trees', 'trees', 'solar', 'crates', 'trees', 'path', 'trees', 'path', 'trees', 'path'];
+    ringTiles.forEach((t, i) => {
+      const kind = kinds[i % kinds.length], L = this.local(t);
+      const jitter = () => (r() - .5) * 0.5;
+      if (kind === 'crates') { addCrates(b, L.x + jitter() * .6, L.z + jitter() * .6, r); this.pois.crates.push(t); }
+      else if (kind === 'solar') { addSolar(b, L.x, L.z, r() * Math.PI); this.pois.solar.push(t); }
+      else if (kind === 'trees') { const n = 1 + Math.floor(r() * 3); for (let j = 0; j < n; j++) addTree(b, L.x + jitter() * 1.4, L.z + jitter() * 1.4, r, 0.8 + r() * 0.5); this.pois.trees.push(t); }
+      if (kind !== 'trees') this.pathTiles.add(key(...t));
+      if (hexDist(t, this.center) === this.minRing && kind !== 'trees') {
+        const dir = L.clone().setY(0).normalize();
+        addPath(b, dir.clone().multiplyScalar(info.radius * 0.85), L);
+      }
+    });
+    // stepping stones between adjacent walkable tiles
+    for (const t of this.walk) for (const d of DIRS.slice(0, 3)) {
+      const n = [t[0] + d[0], t[1] + d[1]];
+      if (this.tileSet.has(key(...n)) && hexDist(n, this.center) >= this.minRing && r() < 0.6) addPath(b, this.local(t), this.local(n));
+    }
+    b.build(this.group, { territoryId: this.id });
+    // border
+    this.buildBorder();
+    // trucks
+    if (info.trucks) for (let i = 0; i < 2; i++) this.vehicles.push(makeTruck(this, i));
+    // nameplate
+    const el = document.createElement('div');
+    el.className = 'plate' + (this.isHQ ? ' hq' : '');
+    el.addEventListener('click', e => { e.stopPropagation(); selectTerritory(this.id); });
+    this.plateEl = el;
+    this.plate = new CSS2DObject(el);
+    this.plate.position.set(0, info.height + 0.9, 0);
+    this.group.add(this.plate);
+    this.updatePlate();
+  }
+  buildBorder() {
+    if (this.border) { this.group.remove(this.border, this.glow); }
+    const lines = [], glows = [];
+    for (const t of this.tiles) {
+      const c = this.local(t);
+      DIRS.forEach(d => {
+        if (this.tileSet.has(key(t[0] + d[0], t[1] + d[1]))) return;
+        const v = axial(d[0], d[1]); const a = Math.atan2(v.z, v.x);
+        const p1 = new THREE.Vector3(Math.cos(a - Math.PI / 6), 0, Math.sin(a - Math.PI / 6)).multiplyScalar(HEX * 0.97).add(c);
+        const p2 = new THREE.Vector3(Math.cos(a + Math.PI / 6), 0, Math.sin(a + Math.PI / 6)).multiplyScalar(HEX * 0.97).add(c);
+        const mid = p1.clone().add(p2).multiplyScalar(.5), len = p1.distanceTo(p2) + 0.06, ry = Math.atan2(p2.x - p1.x, p2.z - p1.z);
+        lines.push(G.box.clone().applyMatrix4(mat4(mid.x, 0.04, mid.z, 0, ry, 0, 0.09, 0.06, len)));
+        const inward = c.clone().sub(mid).setY(0).normalize().multiplyScalar(0.12);
+        glows.push(new THREE.PlaneGeometry(1, 1).applyMatrix4(mat4(mid.x + inward.x, 0.05, mid.z + inward.z, -Math.PI / 2, 0, ry, 0.45, len, 1)));
+      });
+    }
+    this.borderMat = new THREE.MeshBasicMaterial({ color: this.color, toneMapped: false });
+    this.glowMat = new THREE.MeshBasicMaterial({ color: this.color, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+    this.border = new THREE.Mesh(mergeGeometries(lines.map(g => g.toNonIndexed()).map(g => { g.deleteAttribute('uv'); return g; })), this.borderMat);
+    this.glow = new THREE.Mesh(mergeGeometries(glows.map(g => g.toNonIndexed()).map(g => { g.deleteAttribute('uv'); return g; })), this.glowMat);
+    this.group.add(this.border, this.glow);
+  }
+  updatePlate() {
+    const d = this.data;
+    this.plateEl.innerHTML = this.isHQ ? `<b>Jean Capital</b><span>Head office</span>` : `<b>${esc(d.name)}</b><span>${esc(d.city)}</span>`;
+  }
+  setData(d) {
+    this.data = d;
+    if (d.status !== this.status) {
+      this.status = d.status;
+      this.targetColor.set(STATUS_COL[d.status] ?? 0x999999);
+    }
+    this.updatePlate();
+  }
+  workSpot(r) {
+    const a = r() * Math.PI * 2;
+    return this.centerPos.clone().add(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)).multiplyScalar(this.info.radius + 0.3));
+  }
+  randomWalkTile(r) { return this.walk[Math.floor(r() * this.walk.length)]; }
+  nearestWalk(pos) {
+    let best = null, bd = 1e9;
+    for (const t of this.walk) { const d = this.tilePos(t).distanceToSquared(pos); if (d < bd) { bd = d; best = t; } }
+    return best;
+  }
+  route(fromTile, toTile) {   // BFS over walkable tiles
+    const start = key(...fromTile), goal = key(...toTile), prev = new Map([[start, null]]), qu = [fromTile];
+    const ok = k => this.tileSet.has(k) && hexDist(k.split(',').map(Number), this.center) >= this.minRing;
+    while (qu.length) {
+      const t = qu.shift(); if (key(...t) === goal) break;
+      for (const d of DIRS) { const n = [t[0] + d[0], t[1] + d[1]], k = key(...n); if (!prev.has(k) && ok(k)) { prev.set(k, key(...t)); qu.push(n); } }
+    }
+    if (!prev.has(goal)) return [toTile];
+    const out = []; let k = goal; while (k) { out.unshift(k.split(',').map(Number)); k = prev.get(k); }
+    return out.slice(1);
+  }
+  update(dt, t) {
+    this.color.lerp(this.targetColor, Math.min(1, dt * 1.5));
+    const pulse = 0.35 + 0.2 * Math.sin(t * 2.2 + this.center[0]);
+    this.glowMat.opacity = this.selected ? pulse + 0.25 : pulse;
+    this.borderMat.color.copy(this.color); this.glowMat.color.copy(this.color);
+    for (const v of this.vehicles) v.update(dt, t);
+  }
+  dispose() {
+    scene.remove(this.group);
+    this.group.traverse(o => { if (o.isCSS2DObject) o.element.remove(); });
+    for (const k of this.tileSet) tileOwner.delete(k);
+  }
+}
+
+function makeTruck(terr, i) {
+  const g = new THREE.Group();
+  const acc = accent(SECTOR_ACCENT['Logistics']);
+  const parts = [[G.box, M.white, [0, 0.13, -0.08, 0.16, 0.18, 0.34]], [G.box, acc, [0, 0.11, 0.15, 0.15, 0.15, 0.12]], [G.box, M.glass, [0, 0.15, 0.215, 0.13, 0.06, 0.01]]];
+  for (const [geo, mat, [x, y, z, sx, sy, sz]] of parts) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; g.add(m); }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const w = new THREE.Mesh(G.cyl, M.dark); w.rotation.z = Math.PI / 2; w.scale.set(0.045, 0.03, 0.045); w.position.set(sx * 0.085, 0.045, sz * 0.12); g.add(w); }
+  g.userData.territoryId = terr.id;
+  terr.group.add(g);
+  const phase = i * Math.PI;
+  return {
+    update(dt, t) {
+      // loop: along the loading pads, out round the side
+      const u = (t * 0.07 + phase / (Math.PI * 2)) % 1, a = u * Math.PI * 2;
+      const x = Math.cos(a) * 1.55, z = 0.65 + Math.sin(a) * 0.55;
+      const nx = Math.cos(a + 0.05) * 1.55, nz = 0.65 + Math.sin(a + 0.05) * 0.55;
+      g.position.set(x, 0, z); g.rotation.y = Math.atan2(nx - x, nz - z);
+    }
+  };
+}
+
+// ---------- avatars ----------
+const avatars = [];          // all avatars (core + ambient)
+const people = new Map();    // person id -> Avatar
+const bodyGeo = new THREE.CapsuleGeometry(0.1, 0.13, 6, 14);
+const headGeo = new THREE.SphereGeometry(0.095, 18, 12);
+const ringGeo = new THREE.TorusGeometry(0.16, 0.026, 6, 24);
+const sparkGeo = new THREE.OctahedronGeometry(0.03, 0);
+const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffe27a, toneMapped: false });
+const avatarMat = new THREE.MeshStandardMaterial({ color: 0xfdfcf8, roughness: 0.45 });
+const visorMat = new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.2, metalness: 0.3 });
+const hatMat = new THREE.MeshStandardMaterial({ color: 0xf5c542, roughness: 0.5 });
+const pmMat = new THREE.MeshStandardMaterial({ color: 0x7fb7a4, roughness: 0.5 });
+const ringMats = {};
+const ringMat = c => ringMats[c] ||= new THREE.MeshBasicMaterial({ color: c, toneMapped: false });
+
+const STATUS_ICON = {
+  idle: ['·', '#a7aab1'], working: ['✎', '#6fe0a6'], reviewing: ['✓', '#9ab8ff'], drafting: ['✎', '#6fe0a6'],
+  submitted: ['↑', '#ffd479'], rework: ['!', '#ff8a80'], travelling: ['→', '#ffd479'], meeting: ['•', '#c9b6ff'],
+};
+function activityKind(a) {
+  a = (a || 'idle').toLowerCase();
+  if (a.includes('travel')) return 'travelling';
+  if (a.includes('rework') || a.includes('반려')) return 'rework';
+  if (a.includes('submit') || a.includes('제출')) return 'submitted';
+  if (a.includes('review')) return 'reviewing';
+  if (a.includes('meet')) return 'meeting';
+  if (a === 'idle' || a === '') return 'idle';
+  return 'working';
+}
+
+class Avatar {
+  constructor({ terrId, role = null, person = null, staffType = 'pm', seed = 1 }) {
+    this.r = rng(seed);
+    this.person = person; this.role = role; this.terrId = terrId;
+    this.queue = []; this.action = null; this.speed = 0.55 + this.r() * 0.15;
+    this.travelling = false; this.carrying = false; this.partner = null;
+    const g = this.group = new THREE.Group();
+    const s = person ? 1.25 : 1;
+    g.scale.setScalar(s);
+    const body = this.body = new THREE.Group(); g.add(body);
+    const torso = new THREE.Mesh(bodyGeo, avatarMat); torso.position.y = 0.2; torso.castShadow = true; body.add(torso);
+    const head = this.head = new THREE.Mesh(headGeo, avatarMat); head.position.y = 0.42; head.castShadow = true; body.add(head);
+    const visor = new THREE.Mesh(G.sphere, visorMat); visor.scale.set(0.07, 0.035, 0.03); visor.position.set(0, 0.43, 0.075); body.add(visor);
+    if (!person && staffType === 'contractor') { const hat = new THREE.Mesh(G.hemi, hatMat); hat.scale.set(0.105, 0.08, 0.105); hat.position.y = 0.45; body.add(hat); }
+    if (!person && staffType === 'pm') { const band = new THREE.Mesh(G.cyl, pmMat); band.scale.set(0.102, 0.03, 0.102); band.position.y = 0.24; body.add(band); }
+    const rc = person ? ROLE_COL[role] ?? 0x888888 : 0xb8b0a2;
+    const ring = this.ring = new THREE.Mesh(ringGeo, ringMat(rc)); ring.rotation.x = Math.PI / 2; ring.position.y = 0.015; g.add(ring);
+    if (person) { ring.scale.setScalar(1.15); }
+    // crate (carry) and laptop (work)
+    this.crate = new THREE.Mesh(G.box, M.crate); this.crate.scale.setScalar(0.14); this.crate.position.set(0, 0.6, 0); this.crate.visible = false; this.crate.castShadow = true; body.add(this.crate);
+    this.laptop = new THREE.Mesh(G.box, M.dark); this.laptop.scale.set(0.14, 0.01, 0.1); this.laptop.position.set(0, 0.27, 0.15); this.laptop.visible = false; body.add(this.laptop);
+    this.sparks = [0, 1, 2].map(i => { const m = new THREE.Mesh(sparkGeo, sparkMat); m.visible = false; g.add(m); return m; });
+    // pick target
+    torso.userData = head.userData = { avatar: this };
+    this.pickables = [torso, head];
+    // status chip (core people only)
+    if (person) {
+      const el = document.createElement('div'); el.className = 'stat';
+      el.addEventListener('click', e => { e.stopPropagation(); selectPerson(this.person.id); });
+      el.style.pointerEvents = 'auto'; el.style.cursor = 'pointer';
+      this.statEl = el; this.stat = new CSS2DObject(el); this.stat.position.set(0, 0.72, 0); g.add(this.stat);
+    }
+    const terr = territories.get(terrId);
+    const t = terr.randomWalkTile(this.r); const p = terr.tilePos(t);
+    g.position.set(p.x + (this.r() - .5) * .6, TOP_TERR, p.z + (this.r() - .5) * .6);
+    g.rotation.y = this.r() * Math.PI * 2;
+    this.phase = this.r() * 10;
+    scene.add(g);
+    this.updateStat();
+  }
+  get terr() { return territories.get(this.terrId); }
+  updateStat() {
+    if (!this.statEl) return;
+    const kind = this.travelling ? 'travelling' : activityKind(this.person.activity);
+    const [glyph, col] = STATUS_ICON[kind];
+    const first = this.person.name.split(' ')[0];
+    this.statEl.innerHTML = `<i style="background:${col}">${glyph}</i>${esc(first)}`;
+  }
+  walkTo(pos, speed) { this.queue.push({ type: 'walk', to: pos.clone(), speed: speed ?? this.speed }); }
+  walkRoute(target) {
+    const terr = this.terr; const from = terr.nearestWalk(this.lastQueuedPos()); const to = terr.nearestWalk(target);
+    for (const t of terr.route(from, to)) { const p = terr.tilePos(t); p.x += (this.r() - .5) * .35; p.z += (this.r() - .5) * .35; this.walkTo(p); }
+    this.walkTo(target);
+  }
+  lastQueuedPos() { for (let i = this.queue.length - 1; i >= 0; i--) if (this.queue[i].to) return this.queue[i].to; return this.group.position; }
+  plan() {
+    const r = this.r, terr = this.terr; if (!terr) return;
+    const busy = this.person && activityKind(this.person.activity) !== 'idle';
+    const x = r();
+    const wWork = busy ? 0.5 : 0.25;
+    if (x < wWork) {
+      const spot = terr.workSpot(r);
+      this.walkRoute(spot);
+      this.queue.push({ type: 'work', dur: 4 + r() * 6, face: terr.centerPos.clone() });
+    } else if (x < wWork + 0.2 && terr.pois.crates.length) {
+      const src = terr.tilePos(terr.pois.crates[Math.floor(r() * terr.pois.crates.length)]);
+      const dests = [...terr.pois.solar.map(t => terr.tilePos(t)), terr.workSpot(r)];
+      this.walkRoute(src); this.queue.push({ type: 'pickup', dur: 0.7 });
+      this.walkRoute(dests[Math.floor(r() * dests.length)]); this.queue.push({ type: 'drop', dur: 0.6 });
+    } else if (x < wWork + 0.35) {
+      const partner = avatars.find(a => a !== this && a.terrId === this.terrId && !a.travelling && !a.partner && a.queue.length < 2 && r() < 0.6);
+      if (partner) {
+        const mid = this.group.position.clone().lerp(partner.group.position, 0.5);
+        const tile = terr.nearestWalk(mid); const mp = terr.tilePos(tile);
+        const off = new THREE.Vector3(0.2, 0, 0);
+        this.partner = partner; partner.partner = this;
+        partner.queue = []; partner.action = null;
+        this.walkRoute(mp.clone().add(off)); this.queue.push({ type: 'meet', dur: 3 + r() * 2, with: partner });
+        partner.walkRoute(mp.clone().sub(off)); partner.queue.push({ type: 'meet', dur: 3 + r() * 2, with: this });
+        return;
+      }
+      this.queue.push({ type: 'wait', dur: 1 + r() * 2 });
+    } else {
+      const hops = 1 + Math.floor(r() * 3);
+      let cur = terr.nearestWalk(this.group.position);
+      for (let i = 0; i < hops; i++) {
+        const opts = DIRS.map(d => [cur[0] + d[0], cur[1] + d[1]]).filter(n => terr.tileSet.has(key(...n)) && hexDist(n, terr.center) >= terr.minRing);
+        if (!opts.length) break; cur = opts[Math.floor(r() * opts.length)];
+        const p = terr.tilePos(cur); p.x += (r() - .5) * .5; p.z += (r() - .5) * .5; this.walkTo(p);
+      }
+      this.queue.push({ type: 'wait', dur: 0.8 + r() * 2.5 });
+    }
+  }
+  travelTo(newId) {
+    const from = this.terr, to = territories.get(newId);
+    if (!to || newId === this.terrId) return;
+    if (this.partner) { this.partner.partner = null; this.partner = null; }
+    this.queue = []; this.action = null; this.carrying = false; this.crate.visible = false;
+    this.travelling = true; this.updateStat();
+    const sp = 1.5;
+    const exitTile = from ? from.walk.reduce((a, t) => from.tilePos(t).distanceTo(to.centerPos) < from.tilePos(a).distanceTo(to.centerPos) ? t : a, from.walk[0]) : null;
+    if (exitTile) { const e = from.tilePos(exitTile); this.walkTo(e, sp); const out = e.clone().sub(from.centerPos).setY(0).normalize().multiplyScalar(1.6).add(e); this.walkTo(out, sp); }
+    const entry = to.nearestWalk(this.lastQueuedPos()); const ep = to.tilePos(entry);
+    const before = ep.clone().sub(to.centerPos).setY(0).normalize().multiplyScalar(1.6).add(ep);
+    this.walkTo(before, sp); this.walkTo(ep, sp);
+    this.queue.push({ type: 'arrive', id: newId });
+  }
+  update(dt, t) {
+    if (!this.action) { this.action = this.queue.shift(); if (!this.action) { this.plan(); this.action = this.queue.shift(); if (!this.action) return; } this.action.t = 0; }
+    const a = this.action, g = this.group, body = this.body;
+    a.t += dt;
+    this.laptop.visible = false;
+    let moving = false;
+    switch (a.type) {
+      case 'walk': {
+        const d = _p.subVectors(a.to, g.position); d.y = 0;
+        const dist = d.length(), step = a.speed * dt;
+        if (dist <= step) { g.position.x = a.to.x; g.position.z = a.to.z; this.action = null; }
+        else { d.multiplyScalar(step / dist); g.position.add(d); this.face(Math.atan2(d.x, d.z), dt); moving = true; }
+        // height follows terrain (territory vs desert)
+        const [q, r] = worldToAxial(g.position.x, g.position.z);
+        const ty = tileOwner.has(key(q, r)) ? TOP_TERR : TOP_DESERT + 0.02;
+        g.position.y += (ty - g.position.y) * Math.min(1, dt * 8);
+        break;
+      }
+      case 'work': {
+        this.face(Math.atan2(a.face.x - g.position.x, a.face.z - g.position.z), dt);
+        this.laptop.visible = true;
+        body.position.y = Math.abs(Math.sin(t * 14 + this.phase)) * 0.012;
+        this.head.rotation.x = 0.25 + Math.sin(t * 3 + this.phase) * 0.05;
+        this.sparks.forEach((s, i) => { s.visible = true; const u = (t * 0.9 + i / 3 + this.phase) % 1; s.position.set(Math.sin(u * 9 + i) * 0.12, 0.45 + u * 0.45, 0.12 + Math.cos(u * 7) * 0.05); s.scale.setScalar(1 - u); s.rotation.y = t * 4; });
+        if (a.t > a.dur) { this.action = null; this.head.rotation.x = 0; this.sparks.forEach(s => s.visible = false); }
+        break;
+      }
+      case 'pickup': case 'drop': {
+        const k = Math.sin(Math.min(1, a.t / a.dur) * Math.PI);
+        body.rotation.x = k * 0.5; body.position.y = -k * 0.05;
+        if (a.t > a.dur * 0.5) { this.carrying = a.type === 'pickup'; this.crate.visible = this.carrying; }
+        if (a.t > a.dur) { body.rotation.x = 0; body.position.y = 0; this.action = null; }
+        break;
+      }
+      case 'meet': {
+        const o = a.with?.group.position; if (o) this.face(Math.atan2(o.x - g.position.x, o.z - g.position.z), dt);
+        this.head.rotation.x = Math.max(0, Math.sin(t * 5 + this.phase)) * 0.3;
+        body.position.y = Math.max(0, Math.sin(t * 2.3 + this.phase) - 0.92) * 0.6;
+        if (a.t > a.dur) { this.action = null; this.head.rotation.x = 0; body.position.y = 0; if (this.partner === a.with) { this.partner = null; } }
+        break;
+      }
+      case 'wait': {
+        this.head.rotation.y = Math.sin(t * 0.8 + this.phase) * 0.6;
+        if (a.t > a.dur) { this.action = null; this.head.rotation.y = 0; }
+        break;
+      }
+      case 'arrive': {
+        this.terrId = a.id; this.travelling = false; this.action = null; this.updateStat(); renderPeople();
+        break;
+      }
+    }
+    if (a.type !== 'work') this.sparks.forEach(s => s.visible = false);
+    if (moving) {
+      this.phase += dt * a.speed * 22;
+      body.position.y = Math.abs(Math.sin(this.phase)) * 0.045;
+      body.rotation.z = Math.sin(this.phase) * 0.07;
+      body.rotation.x = 0.08;
+    } else if (a.type === 'wait') { body.position.y = 0; body.rotation.z *= 0.9; body.rotation.x *= 0.9; }
+  }
+  face(target, dt) {
+    let d = target - this.group.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
+    this.group.rotation.y += d * Math.min(1, dt * 8);
+  }
+  dispose() { scene.remove(this.group); if (this.statEl) this.statEl.remove(); }
+}
+
+// ---------- state ----------
+let STATE = { assets: [], people: [] };
+let firstLoad = true;
+const feedEl = document.getElementById('feed');
+function feed(msg) {
+  const li = document.createElement('li');
+  li.innerHTML = `<time>${nowKST()}</time>${esc(msg)}`;
+  feedEl.prepend(li);
+  while (feedEl.children.length > 40) feedEl.lastChild.remove();
+}
+const assetName = id => id === HQ_ID ? 'HQ' : (STATE.assets.find(a => a.id === id)?.name ?? id);
+
+function autoPlace(asset) {
+  const taken = new Set([...territories.values()].map(t => key(...t.center)));
+  const base = asset.country === 'Korea' ? [9, 0] : [-10, 0];
+  for (let ring = 0; ring < 6; ring++) for (let dq = -ring * 4; dq <= ring * 4; dq += 4) for (let dr = -ring * 5; dr <= ring * 5; dr += 5) {
+    const c = [base[0] + dq, base[1] + dr];
+    if (![...taken].some(k => hexDist(k.split(',').map(Number), c) < 5)) return { q: c[0], r: c[1] };
+  }
+  return { q: base[0], r: base[1] };
+}
+
+function applyState(s) {
+  const prev = STATE; STATE = s;
+  const msgs = [];
+  // assets
+  const ids = new Set(s.assets.map(a => a.id));
+  let rebuild = false;
+  for (const a of s.assets) {
+    if (!a.territory) a.territory = autoPlace(a);
+    const t = territories.get(a.id);
+    if (!t) { territories.set(a.id, new Territory(a)); rebuild = true; if (!firstLoad) msgs.push(`New asset on the map: ${a.name} (${a.city})`); }
+    else {
+      const old = t.data;
+      if (old.status !== a.status && !firstLoad) msgs.push(`${a.name} status → ${a.status}`);
+      if (old.next_event !== a.next_event && !firstLoad) msgs.push(`${a.name} next lease event → ${a.next_event ?? '—'}`);
+      t.setData(a);
+    }
+  }
+  for (const [id, t] of territories) if (id !== HQ_ID && !ids.has(id)) {
+    // people inside walk back to HQ first
+    for (const av of avatars) if (av.terrId === id) { if (av.person) av.travelTo(HQ_ID); }
+    for (let i = avatars.length - 1; i >= 0; i--) if (!avatars[i].person && avatars[i].terrId === id) { avatars[i].dispose(); avatars.splice(i, 1); }
+    t.dispose(); territories.delete(id); rebuild = true; msgs.push(`${t.data.name} removed from the register`);
+  }
+  if (rebuild) { buildGround(); placeRegionLabels(); spawnAmbient(); }
+  // people
+  const pids = new Set(s.people.map(p => p.id));
+  for (const p of s.people) {
+    const dest = territories.has(p.current_asset_id) ? p.current_asset_id : HQ_ID;
+    let av = people.get(p.id);
+    const old = prev.people?.find(x => x.id === p.id);
+    if (!av) {
+      av = new Avatar({ terrId: firstLoad ? dest : HQ_ID, role: p.role, person: { ...p }, seed: hashStr(p.id) });
+      avatars.push(av); people.set(p.id, av);
+      if (!firstLoad) { msgs.push(`${p.name} (${p.role}) joined`); if (dest !== HQ_ID) av.travelTo(dest); }
+    } else {
+      av.person = { ...p };
+      if (dest !== av.terrId && !(av.travelling && av.queue.some(q => q.id === dest))) {
+        av.travelTo(dest);
+        msgs.push(`${p.name} heading to ${assetName(dest)}`);
+      }
+      av.updateStat();
+    }
+    if (!firstLoad && old) {
+      if (p.task_title && p.task_title !== old.task_title) msgs.push(`${p.assigned_by ? p.assigned_by + ' assigned' : 'New task for ' + p.name + ':'} ${p.task_title}: ${assetName(dest)}`);
+      else if (p.activity !== old.activity) msgs.push(`${p.name}: ${p.activity}${p.task_title ? ' — ' + p.task_title : ''}`);
+    }
+  }
+  for (const [id, av] of people) if (!pids.has(id)) { av.dispose(); avatars.splice(avatars.indexOf(av), 1); people.delete(id); msgs.push(`${av.person.name} left`); }
+  // first load summary
+  if (firstLoad) {
+    const open = s.people.filter(p => p.task_title).length;
+    feed(`Loaded state.json · ${s.assets.length} assets · ${s.people.length} people · ${open} open task${open === 1 ? '' : 's'}`);
+    for (const p of s.people) if (p.task_title) feed(`${p.assigned_by ? p.assigned_by + ' assigned' : p.name + ' on'} ${p.task_title}: ${assetName(p.current_asset_id)}`);
+    if (!open) feed('업무함 is empty. First task due 19 Nov 2026, 13:00 KST.');
+  }
+  msgs.forEach(feed);
+  document.getElementById('updated').textContent = s.updated_at ? new Date(s.updated_at).toLocaleString('en-GB', { timeZone: 'Asia/Seoul', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' KST' : '—';
+  renderPeople();
+  firstLoad = false;
+  if (SELECTED) refreshPanel();
+}
+
+let lastJSON = '';
+async function poll() {
+  try {
+    const res = await fetch('state.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    const txt = await res.text();
+    if (txt !== lastJSON) { lastJSON = txt; applyState(JSON.parse(txt)); }
+  } catch (e) { if (firstLoad) feed('Could not load state.json (' + e.message + '). Serve this folder over HTTP.'); }
+}
+
+// HQ + ambient staff
+function makeHQ() {
+  const hq = new Territory({ id: HQ_ID, name: 'Jean Capital', city: 'Head office', sector: 'HQ', status: 'Hold', territory: { q: 0, r: 0 } }, true);
+  territories.set(HQ_ID, hq);
+}
+function spawnAmbient() {
+  for (const [id, t] of territories) {
+    const have = avatars.filter(a => !a.person && a.terrId === id).length;
+    const r = rng(hashStr(id) ^ 99);
+    const want = IS_PHONE ? 1 + Math.floor(r() * 2) : (id === HQ_ID ? 4 : 3 + Math.floor(r() * 4));
+    for (let i = have; i < want; i++) {
+      const av = new Avatar({ terrId: id, staffType: r() < 0.5 ? 'contractor' : 'pm', seed: hashStr(id + i) });
+      avatars.push(av);
+    }
+  }
+}
+
+// region labels
+const regionLabels = [];
+function placeRegionLabels() {
+  regionLabels.forEach(l => { scene.remove(l); l.element.remove(); }); regionLabels.length = 0;
+  for (const [country, label] of [['UK', 'United Kingdom'], ['Korea', 'Korea']]) {
+    const ts = [...territories.values()].filter(t => !t.isHQ && t.data.country === country);
+    if (!ts.length) continue;
+    const c = ts.reduce((v, t) => v.add(t.centerPos), new THREE.Vector3()).multiplyScalar(1 / ts.length);
+    const maxZ = Math.max(...ts.map(t => t.centerPos.z));
+    const el = document.createElement('div'); el.className = 'region'; el.textContent = label;
+    const o = new CSS2DObject(el); o.position.set(c.x * 0.82, 0.2, maxZ + 4.6); scene.add(o); regionLabels.push(o);
+  }
+}
+
+// ---------- UI ----------
+const peopleEl = document.getElementById('people');
+function renderPeople() {
+  peopleEl.innerHTML = '';
+  let running = 0;
+  for (const p of STATE.people) {
+    const av = people.get(p.id);
+    const kind = av?.travelling ? 'travelling' : activityKind(p.activity);
+    if (kind !== 'idle') running++;
+    const li = document.createElement('li');
+    if (SELECTED?.type === 'person' && SELECTED.id === p.id) li.className = 'sel';
+    const where = av?.travelling ? '→ ' + assetName(p.current_asset_id) : assetName(av?.terrId ?? p.current_asset_id);
+    li.innerHTML = `<span class="ring" style="color:${hexToCss(ROLE_COL[p.role] ?? 0x888888)}"></span>
+      <div><div class="pname">${esc(p.name)}</div><div class="pmeta">${esc(p.role)} · ${esc(where)}</div></div>
+      <span class="dot ${kind === 'travelling' ? 'travel' : kind === 'idle' ? '' : 'working'}" title="${esc(p.activity)}"></span>`;
+    li.onclick = () => { selectPerson(p.id); document.getElementById('side').classList.remove('open'); };
+    peopleEl.appendChild(li);
+  }
+  document.getElementById('nAgents').textContent = STATE.people.length;
+  document.getElementById('nRunning').textContent = running;
+}
+
+let SELECTED = null;
+const panel = document.getElementById('panel'), panelBody = document.getElementById('panelBody');
+panel.querySelector('.close').onclick = () => { panel.classList.remove('open'); setSelected(null); };
+function setSelected(sel) {
+  for (const t of territories.values()) t.selected = false;
+  SELECTED = sel;
+  if (sel?.type === 'territory') territories.get(sel.id).selected = true;
+  renderPeople();
+}
+const fmtPct = v => v == null ? '<span class="muted">Analyst to compute</span>' : (v * 100).toFixed(2) + '%';
+const fmtYrs = v => v == null ? '<span class="muted">Analyst to compute</span>' : v.toFixed(1) + ' yrs';
+function refreshPanel() {
+  if (!SELECTED) return;
+  if (SELECTED.type === 'territory') {
+    const t = territories.get(SELECTED.id); if (!t) return;
+    const here = STATE.people.filter(p => (people.get(p.id)?.terrId) === t.id).map(p => esc(p.name)).join(', ') || '<span class="muted">None</span>';
+    const staff = avatars.filter(a => !a.person && a.terrId === t.id).length;
+    if (t.isHQ) {
+      panelBody.innerHTML = `<h3>Jean Capital</h3><div class="k">Head office · HQ</div>
+        <dl><dt>People here</dt><dd>${here}</dd><dt>Site staff</dt><dd>${staff} (decorative)</dd><dt>Assets</dt><dd>${STATE.assets.length}</dd></dl>
+        <a class="btn" href="${NOTION_HOME}" target="_blank" rel="noopener">Open intranet in Notion ↗</a>`;
+    } else {
+      const d = t.data;
+      panelBody.innerHTML = `<h3>${esc(d.name)}</h3><div class="k">${esc(d.id)} · ${esc(d.city)} · ${esc(d.country)}</div>
+        <dl><dt>Sector</dt><dd>${esc(d.sector)}</dd>
+        <dt>상태</dt><dd><span class="pill" style="background:${hexToCss(STATUS_COL[d.status] ?? 0x999999)}">${esc(d.status)}</span></dd>
+        <dt>NIY</dt><dd>${fmtPct(d.niy)}</dd><dt>공실률</dt><dd>${fmtPct(d.vacancy)}</dd><dt>WAULT</dt><dd>${fmtYrs(d.wault)}</dd>
+        <dt>Next event</dt><dd>${esc(d.next_event ?? '—')}</dd><dt>People here</dt><dd>${here}</dd><dt>Site staff</dt><dd>${staff} (decorative)</dd></dl>
+        ${d.notion_url ? `<a class="btn" href="${esc(d.notion_url)}" target="_blank" rel="noopener">Open in Notion ↗</a>` : ''}`;
+    }
+  } else {
+    const p = STATE.people.find(x => x.id === SELECTED.id); if (!p) return;
+    const av = people.get(p.id);
+    panelBody.innerHTML = `<h3>${esc(p.name)}</h3><div class="k" style="color:${hexToCss(ROLE_COL[p.role] ?? 0x888888)}">${esc(p.role)}</div>
+      <dl><dt>Location</dt><dd>${esc(av?.travelling ? 'Travelling to ' + assetName(p.current_asset_id) : assetName(av?.terrId ?? p.current_asset_id))}</dd>
+      <dt>Activity</dt><dd>${esc(p.activity ?? 'idle')}</dd>
+      <dt>Task</dt><dd>${p.task_title ? esc(p.task_title) : '<span class="muted">No open task in 업무함</span>'}</dd>
+      <dt>Due</dt><dd>${esc(p.due ?? '—')}</dd></dl>
+      ${p.notion_task_url ? `<a class="btn" href="${esc(p.notion_task_url)}" target="_blank" rel="noopener">Open task in Notion ↗</a>` : `<a class="btn" href="${NOTION_HOME}" target="_blank" rel="noopener">Open 업무함 ↗</a>`}`;
+  }
+}
+function selectTerritory(id) {
+  const t = territories.get(id); if (!t) return;
+  setSelected({ type: 'territory', id }); refreshPanel(); panel.classList.add('open');
+  glide(t.centerPos, t.isHQ ? 22 : 17);
+}
+function selectPerson(id) {
+  const av = people.get(id); if (!av) return;
+  setSelected({ type: 'person', id }); refreshPanel(); panel.classList.add('open');
+  glide(av.group.position, 11, av);
+}
+
+// frame every territory on first load
+function fitView() {
+  const ts = [...territories.values()];
+  const xs = ts.map(t => Math.abs(t.centerPos.x) + 3.2), zs = ts.map(t => Math.abs(t.centerPos.z) + 3.2);
+  const halfW = Math.max(...xs), halfH = Math.max(...zs);
+  const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  let dist = Math.max(halfW / (tanV * camera.aspect), halfH * 1.6 / tanV) * 1.08;
+  if (camera.aspect < 1) dist = Math.min(dist, 78);   // portrait phone: frame HQ + edges, pan for the rest
+  const dir = new THREE.Vector3(0, 0.66, 0.75).normalize();
+  controls.target.set(0, 0, 1.5);
+  camera.position.copy(controls.target).add(dir.multiplyScalar(dist));
+  controls.update();
+}
+
+// camera glide
+let tween = null;
+function glide(target, dist, follow = null) {
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  if (dir.y < 0.45) { dir.y = 0.62; dir.normalize(); }
+  tween = { t: 0, dur: 1.3, fromT: controls.target.clone(), fromP: camera.position.clone(), toT: target.clone(), dist, dir, follow };
+}
+function updateTween(dt) {
+  if (!tween) return;
+  tween.t += dt; const k = ease(Math.min(1, tween.t / tween.dur));
+  const toT = tween.follow ? tween.follow.group.position.clone() : tween.toT;
+  const toP = toT.clone().add(tween.dir.clone().multiplyScalar(tween.dist));
+  controls.target.lerpVectors(tween.fromT, toT, k);
+  camera.position.lerpVectors(tween.fromP, toP, k);
+  if (tween.t >= tween.dur) tween = null;
+}
+
+// picking
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  ndc.set((e.clientX - rect.left) / rect.width * 2 - 1, -(e.clientY - rect.top) / rect.height * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const avs = ray.intersectObjects(avatars.flatMap(a => a.pickables), false);
+  if (avs.length) {
+    const av = avs[0].object.userData.avatar;
+    if (av.person) return selectPerson(av.person.id);
+    return selectTerritory(av.terrId);
+  }
+  const hits = ray.intersectObjects([...[...territories.values()].map(t => t.group), groundMesh], true);
+  for (const h of hits) {
+    let o = h.object; while (o && !o.userData?.territoryId && o.parent) o = o.parent;
+    if (o?.userData?.territoryId) return selectTerritory(o.userData.territoryId);
+    if (h.object === groundMesh) { const owner = tileOwner.get(groundKeys[h.instanceId]); if (owner) return selectTerritory(owner); break; }
+  }
+});
+document.getElementById('menu').onclick = () => document.getElementById('side').classList.toggle('open');
+
+// ---------- loop ----------
+const clock = new THREE.Clock();
+let fpsAcc = 0, fpsN = 0, degraded = false;
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  for (const a of avatars) a.update(dt, t);
+  for (const tr of territories.values()) tr.update(dt, t);
+  updateTween(dt);
+  controls.update();
+  if (useTilt) composer.render(); else renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  // adaptive quality: if we can't hold ~45fps, drop tilt-shift then pixel ratio
+  fpsAcc += dt; fpsN++;
+  if (fpsAcc > 3) {
+    const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0;
+    if (fps < 45 && !degraded) { degraded = true; if (useTilt) useTilt = false; else { pixelRatio = 1; renderer.setPixelRatio(1); resize(); } }
+    else if (fps < 45 && degraded && pixelRatio > 1) { pixelRatio = 1; renderer.setPixelRatio(1); resize(); }
+  }
+  requestAnimationFrame(frame);
+}
+setInterval(() => { document.getElementById('clock').textContent = 'Simulated firm · ' + nowKST() + ' KST'; }, 1000);
+document.getElementById('clock').textContent = 'Simulated firm · ' + nowKST() + ' KST';
+
+(async function init() {
+  resize();
+  await loadModels();
+  makeHQ();
+  await poll();
+  fitView();
+  if (!STATE.assets.length) { buildGround(); placeRegionLabels(); spawnAmbient(); }
+  buildRocks();
+  setInterval(poll, 60000);
+  window.__world = { territories, avatars, people, applyState, glide };   // debug hook
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
