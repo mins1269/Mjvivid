@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-12T22:30:00+09:00",
+  "updated_at": "2026-11-12T23:00:38+09:00",
   "source": "Derived copy of Notion 자산 대장 + 업무함 and .claude/people.md. Notion is the source of truth. null metrics = Analyst to compute (not yet in Notion).",
   "assets": [
     {
@@ -14,7 +14,11 @@
       "wault": null,
       "next_event": "2026-12-24",
       "notion_url": "https://app.notion.com/p/41623b2eba2a813d9feefe24137a09e9",
-      "territory": { "q": -9, "r": -3 }
+      "territory": {
+        "q": -9,
+        "r": -3
+      },
+      "acquisition": false
     },
     {
       "id": "UK-02",
@@ -28,7 +32,11 @@
       "wault": null,
       "next_event": "2026-12-31",
       "notion_url": "https://app.notion.com/p/41623b2eba2a8147a747ea77c339a1d5",
-      "territory": { "q": -11, "r": 4 }
+      "territory": {
+        "q": -11,
+        "r": 4
+      },
+      "acquisition": false
     },
     {
       "id": "KR-01",
@@ -42,7 +50,11 @@
       "wault": null,
       "next_event": "2026-11-30",
       "notion_url": "https://app.notion.com/p/41623b2eba2a81d4865fc1fa532d07ba",
-      "territory": { "q": 11, "r": -4 }
+      "territory": {
+        "q": 11,
+        "r": -4
+      },
+      "acquisition": false
     },
     {
       "id": "KR-02",
@@ -56,14 +68,93 @@
       "wault": null,
       "next_event": "2027-01-01",
       "notion_url": "https://app.notion.com/p/41623b2eba2a810c95d4ed4bb2454a22",
-      "territory": { "q": 8, "r": 3 }
+      "territory": {
+        "q": 8,
+        "r": 3
+      },
+      "acquisition": false
     }
   ],
   "people": [
-    { "id": "jonathan-hale", "name": "Jonathan Hale", "role": "MD", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null },
-    { "id": "yoon-seo-hyun", "name": "Yoon Seo-hyun", "role": "Head of AM", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null },
-    { "id": "daniel-park", "name": "Daniel Park", "role": "Senior Associate", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null },
-    { "id": "market-desk", "name": "Market Desk", "role": "Market Desk", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null },
-    { "id": "minsung-jean", "name": "Minsung Jean", "role": "Analyst", "current_asset_id": "HQ", "activity": "idle", "task_title": null, "due": null, "notion_task_url": null }
+    {
+      "id": "jonathan-hale",
+      "name": "Jonathan Hale",
+      "role": "MD",
+      "current_asset_id": "HQ",
+      "activity": "idle",
+      "task_title": null,
+      "due": null,
+      "notion_task_url": null
+    },
+    {
+      "id": "yoon-seo-hyun",
+      "name": "Yoon Seo-hyun",
+      "role": "Head of AM",
+      "current_asset_id": "HQ",
+      "activity": "idle",
+      "task_title": null,
+      "due": null,
+      "notion_task_url": null
+    },
+    {
+      "id": "daniel-park",
+      "name": "Daniel Park",
+      "role": "Senior Associate",
+      "current_asset_id": "HQ",
+      "activity": "idle",
+      "task_title": null,
+      "due": null,
+      "notion_task_url": null
+    },
+    {
+      "id": "market-desk",
+      "name": "Market Desk",
+      "role": "Market Desk",
+      "current_asset_id": "HQ",
+      "activity": "idle",
+      "task_title": null,
+      "due": null,
+      "notion_task_url": null
+    },
+    {
+      "id": "minsung-jean",
+      "name": "Minsung Jean",
+      "role": "Analyst",
+      "current_asset_id": "HQ",
+      "activity": "idle",
+      "task_title": null,
+      "due": null,
+      "notion_task_url": null
+    },
+    {
+      "id": "hannah-cole",
+      "name": "Hannah Cole",
+      "role": "Fund Accountant",
+      "current_asset_id": "HQ",
+      "activity": "idle",
+      "task_title": null,
+      "due": null,
+      "notion_task_url": null
+    },
+    {
+      "id": "kang-ji-won",
+      "name": "Kang Ji-won",
+      "role": "Tax Manager",
+      "current_asset_id": "HQ",
+      "activity": "idle",
+      "task_title": null,
+      "due": null,
+      "notion_task_url": null
+    },
+    {
+      "id": "oliver-grant",
+      "name": "Oliver Grant",
+      "role": "IR & Marketing",
+      "current_asset_id": "HQ",
+      "activity": "idle",
+      "task_title": null,
+      "due": null,
+      "notion_task_url": null
+    }
   ]
 }

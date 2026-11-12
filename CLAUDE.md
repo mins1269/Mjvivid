@@ -80,6 +80,10 @@ KR-01 41623b2eba2a81d4865fc1fa532d07ba, KR-02 41623b2eba2a810c95d4ed4bb2454a22.
   - Head of AM: weekly (Monday) or on escalation.
   - MD: rarely; sometimes directly to the Analyst, bypassing the Senior Associate.
   - External parties (via market-desk): unannounced, mid-week.
+  - Fund Accountant, Tax Manager, IR & Marketing: occasionally, **at most one task each per
+    week**, and only when tied to a real asset event in the portfolio files or Notion
+    (quarter-end, service charge year-end, an acquisition screen or IC paper, a new void,
+    an investor report). No event, no task.
 - **Feedback.** Given as Notion page comments on the task, Senior Associate first. Short,
   specific, anchored to a number, cell or line. Rework: 상태 = 반려 with a new 마감.
   Good work is "forwarded to MD" and may get an MD comment. The grade goes in 등급, plus
@@ -89,6 +93,24 @@ KR-01 41623b2eba2a81d4865fc1fa532d07ba, KR-02 41623b2eba2a810c95d4ed4bb2454a22.
   tasks before then.
 - Property names in Korean; message bodies in English (UK professional register). One emoji
   max per page title. Keep every `[SRC]` / `[ASSUMED]` tag when copying from repo files.
+
+## Acquisition review flow
+- **Intake (once a quarter).** Minsung picks one deal from the daily News Clipping. The
+  deal enters 자산 대장 with 상태 = Under review, and the Senior Associate sends an
+  "Acquisition screen" task (유형 = Acquisition screen) in 업무함 linked to it. The Tax
+  Manager may comment on the screen (SDLT / 취득세, holding structure).
+- **Data.** Every figure comes from the real article and real comparable evidence, tagged
+  `[SRC: url]` or `[ASSUMED: reason]`. The asset is real if the article is real; do not
+  rename it or invent terms the article does not state. Gaps are listed, not filled.
+- **World map.** While under review the deal is a new territory with a **dashed** border
+  (`"acquisition": true` in `world/state.json`).
+- **IC.** The MD chairs; the outcome is recorded in the IC database (결정).
+  - Approve / Approve with conditions: 상태 → Hold; `acquisition` → false; the border
+    turns solid and the deal becomes a held asset.
+  - Decline: the row is removed from 자산 대장 (or archived), the IC row keeps the record
+    and reasons, and the territory disappears from the map.
+  - Come back: stays Under review, dashed.
+- Agents set up the deal shell and task; the screen, model and IC paper are Minsung's.
 
 ## World map
 `world/index.html` is a 3D hex-tile map of the firm (Three.js from jsDelivr, no other
@@ -105,11 +127,15 @@ https://mins1269.github.io/Mjvivid/
     niy, vacancy (공실률), wault, next_event (다음 임대 이벤트), notion_url. Keep each
     asset's existing `territory {q,r}` so it does not jump; new assets: omit it and the
     page auto-places by country. Empty metrics stay `null` (= Analyst to compute).
+    `acquisition`: true while a pipeline deal awaits IC (dashed border), false once held.
   - `people[]` from `.claude/people.md` (MD, Head of AM, Senior Associate, Market Desk,
-    Analyst) joined to their latest open 업무함 row: current_asset_id = the task's 자산
+    Analyst, Fund Accountant, Tax Manager, IR & Marketing) joined to their latest open 업무함 row: current_asset_id = the task's 자산
     (or "HQ" if none), activity (idle / working / reviewing / submitted / rework /
     meeting), task_title, due (마감), notion_task_url, optional assigned_by (보낸 사람).
   - Set `updated_at` to the KST time of the rebuild.
+- HQ is a radius-4 hex (61 tiles) with zones: Leadership (MD, Head of AM), Investments
+  (Senior Associate, Analyst), Finance, Tax, IR & Marketing, and an IC room. People at HQ
+  sit in their zone by role; activity "meeting" or an IC task sends them to the IC room.
 - Optional CC0 models: put `.glb` files in `world/assets/` with
   `world/assets/manifest.json` = `{ "sectors": { "Office": "office.glb", … } }`.
   Without it the page builds everything procedurally.

@@ -93,6 +93,8 @@
   .plate span { font-size: 10.5px; color: #6e6a62; }
   .plate.hq { background: #22242a; color: #fff; }
   .plate.hq span { color: #b9bcc3; }
+  .zone { pointer-events: auto; cursor: pointer; background: rgba(255,255,255,.88); color: #3a3c42; border-left: 3px solid #999;
+    border-radius: 6px; padding: 1px 7px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
   .region { font-size: 22px; font-weight: 800; letter-spacing: .28em; text-transform: uppercase; color: rgba(110,72,28,.42);
     text-shadow: 0 1px 0 rgba(255,255,255,.4); white-space: nowrap; }
   .stat { display: flex; align-items: center; gap: 4px; background: rgba(21,23,28,.85); color: #fff; border-radius: 999px;
@@ -142,6 +144,7 @@
   <div><i style="background:var(--hold)"></i>Hold</div>
   <div><i style="background:var(--review)"></i>Under review</div>
   <div><i style="background:var(--sale)"></i>For sale</div>
+  <div><i style="background:repeating-linear-gradient(90deg,var(--review) 0 5px,transparent 5px 8px)"></i>Pipeline (awaiting IC)</div>
 </div>
 
 <div id="panel" aria-live="polite"><button class="close" aria-label="Close">×</button><div id="panelBody"></div></div>
@@ -167,7 +170,14 @@ const TILE_H = 0.3;
 const TOP_DESERT = TILE_H / 2;
 const TOP_TERR = TOP_DESERT + 0.08;
 const STATUS_COL = { 'Hold': 0x2fbf71, 'Under review': 0xf2a93b, 'For sale': 0xef5a57 };
-const ROLE_COL = { 'MD': 0xe5484d, 'Head of AM': 0x8e4ec6, 'Senior Associate': 0x3e63dd, 'Market Desk': 0xf76b15, 'Analyst': 0x12a594 };
+const ROLE_COL = { 'MD': 0xe5484d, 'Head of AM': 0x8e4ec6, 'Senior Associate': 0x3e63dd, 'Market Desk': 0xf76b15, 'Analyst': 0x12a594,
+  'Fund Accountant': 0x37b24d, 'Tax Manager': 0x9c6644, 'IR & Marketing': 0xe64980 };
+// HQ zones: one 60-degree wedge each of rings 2-4 around the central dome (index = wedge, starting front-right)
+const HQ_ZONES = ['Investments', 'IC room', 'IR & Marketing', 'Tax', 'Leadership', 'Finance'];
+const ZONE_COL = { 'Leadership': 0x8e4ec6, 'Investments': 0x3e63dd, 'Finance': 0x37b24d, 'Tax': 0x9c6644, 'IR & Marketing': 0xe64980, 'IC room': 0x12a594 };
+const ROLE_ZONE = { 'MD': 'Leadership', 'Head of AM': 'Leadership', 'Senior Associate': 'Investments', 'Analyst': 'Investments',
+  'Fund Accountant': 'Finance', 'Tax Manager': 'Tax', 'IR & Marketing': 'IR & Marketing', 'Market Desk': null };
+const HQ_RADIUS = 4;   // 61 tiles (was 19)
 const SECTOR_ACCENT = { 'Multi-let industrial': 0xf08a3c, 'Logistics': 0x3e8ed0, 'BTR': 0x2fae8f, 'PBSA': 0xa86ad8, 'Office': 0x4466d6, 'HQ': 0x12a594 };
 const DIRS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
 const HQ_ID = 'HQ';
@@ -393,7 +403,7 @@ function buildSector(b, sector, acc, r) {
     }
     case 'HQ': {
       b.add(G.cyl, M.offwhite, mat4(0, 0.06, 0, 0, 0, 0, 2.3, 0.12, 2.3));
-      b.add(G.hemi, M.white, mat4(0, 0.1, 0, 0, 0, 0, 2.0, 1.75, 2.0));
+      b.add(G.hemi, M.white, mat4(0, 0.1, 0, 0, 0, 0, 2.05, 1.9, 2.05));
       b.add(G.torus, A, mat4(0, 0.55, 0, Math.PI / 2, 0, 0, 1.92, 1.92, 0.9));
       b.add(G.torus, M.glass, mat4(0, 1.05, 0, Math.PI / 2, 0, 0, 1.68, 1.68, 0.7));
       b.add(G.box, A, mat4(0, 0.35, 1.95, 0, 0, 0, 0.6, 0.5, 0.18));
@@ -405,6 +415,64 @@ function buildSector(b, sector, acc, r) {
       return { radius: 1.1, height: 1 };
     }
   }
+}
+
+// ---------- HQ zone furniture (local coords; returns desk spots {pos, face}) ----------
+function addDesk(b, p, ry, A) {
+  b.add(G.box, M.white, mat4(p.x, 0.22, p.z, 0, ry, 0, 0.5, 0.04, 0.28));
+  b.add(G.box, M.offwhite, mat4(p.x, 0.1, p.z, 0, ry, 0, 0.44, 0.2, 0.04));
+  b.add(G.box, M.dark, mat4(p.x, 0.33, p.z, 0, ry, 0, 0.2, 0.13, 0.015));
+}
+function buildZone(b, zone, anchor, u, tg, r) {
+  const A = accent(ZONE_COL[zone]), spots = [];
+  const ry = Math.atan2(-tg.z, tg.x);
+  const row = (n, gap = 0.62) => {
+    for (let i = 0; i < n; i++) {
+      const d = anchor.clone().add(tg.clone().multiplyScalar((i - (n - 1) / 2) * gap));
+      addDesk(b, d, ry, A);
+      const seat = d.clone().sub(u.clone().multiplyScalar(0.34));
+      b.add(G.cyl, A, mat4(seat.x, 0.08, seat.z, 0, 0, 0, 0.07, 0.16, 0.07));
+      spots.push({ pos: seat.clone().sub(u.clone().multiplyScalar(0.12)), face: d.clone().add(u.clone().multiplyScalar(0.5)) });
+    }
+  };
+  b.add(G.cyl6, M.path, mat4(anchor.x, 0.008, anchor.z, 0, Math.atan2(u.x, u.z), 0, 1.25, 0.015, 1.25));
+  if (zone === 'IC room') {
+    b.add(G.cyl, M.white, mat4(anchor.x, 0.26, anchor.z, 0, 0, 0, 0.48, 0.04, 0.48));
+    b.add(G.cyl, M.offwhite, mat4(anchor.x, 0.12, anchor.z, 0, 0, 0, 0.08, 0.24, 0.08));
+    b.add(G.torus, M.glass, mat4(anchor.x, 0.1, anchor.z, Math.PI / 2, 0, 0, 1.12, 1.12, 0.55));
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2, dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), c = anchor.clone().add(dir.clone().multiplyScalar(0.72));
+      b.add(G.cyl, A, mat4(c.x, 0.08, c.z, 0, 0, 0, 0.07, 0.16, 0.07));
+      spots.push({ pos: anchor.clone().add(dir.multiplyScalar(0.86)), face: anchor.clone() });
+    }
+    return spots;
+  }
+  if (zone === 'Leadership') {
+    row(2, 0.8);
+    const pod = anchor.clone().add(u.clone().multiplyScalar(0.85));
+    b.add(G.hemi, M.glass, mat4(pod.x, 0.01, pod.z, 0, 0, 0, 0.42, 0.42, 0.42));
+    addTree(b, anchor.x + tg.x * 1.1, anchor.z + tg.z * 1.1, r, 0.6);
+  } else if (zone === 'Investments') {
+    row(4, 0.6);
+    const wb = anchor.clone().add(u.clone().multiplyScalar(0.75));
+    b.add(G.box, M.white, mat4(wb.x, 0.42, wb.z, 0, ry, 0, 0.9, 0.42, 0.03));
+    b.add(G.box, A, mat4(wb.x, 0.64, wb.z, 0, ry, 0, 0.9, 0.03, 0.035));
+  } else if (zone === 'Finance') {
+    row(3, 0.62);
+    const c = anchor.clone().add(tg.clone().multiplyScalar(1.2));
+    for (let i = 0; i < 3; i++) b.add(G.box, M.offwhite, mat4(c.x, 0.1 + i * 0.17, c.z, 0, ry, 0, 0.22, 0.16, 0.26));
+  } else if (zone === 'Tax') {
+    row(2, 0.7);
+    const c = anchor.clone().add(u.clone().multiplyScalar(0.7));
+    b.add(G.box, M.white, mat4(c.x, 0.32, c.z, 0, ry, 0, 0.7, 0.64, 0.16));
+    for (let i = 0; i < 3; i++) b.add(G.box, A, mat4(c.x, 0.14 + i * 0.2, c.z, 0, ry, 0, 0.66, 0.03, 0.17));
+  } else if (zone === 'IR & Marketing') {
+    row(2, 0.7);
+    const c = anchor.clone().add(u.clone().multiplyScalar(0.75));
+    b.add(G.cyl, M.metal, mat4(c.x, 0.3, c.z, 0, 0, 0, 0.02, 0.6, 0.02));
+    b.add(G.box, A, mat4(c.x, 0.62, c.z, 0, ry, 0, 0.62, 0.36, 0.03));
+  }
+  return spots;
 }
 
 // ---------- optional CC0 models (world/assets/manifest.json) ----------
@@ -455,7 +523,7 @@ function buildGround() {
     let y = 0, col;
     if (terr) {
       y = TOP_TERR - TOP_DESERT;
-      col = terr.pathTiles.has(k) ? pathCol : terrCol;
+      col = terr.tint.get(k) ?? (terr.pathTiles.has(k) ? pathCol : terrCol);
       c.copy(col).lerp(groundColA, 0.08);
     } else {
       const n = terrainNoise(p.x, p.z);
@@ -507,12 +575,25 @@ class Territory {
     for (let dq = -2; dq <= 2; dq++) for (let dr = -2; dr <= 2; dr++) if (hexDist([0, 0], [dq, dr]) === 2) ring2.push([dq, dr]);
     const extra = isHQ ? 12 : 3 + Math.floor(r() * 3);
     ring2.sort(() => r() - .5);
-    const rel = [[0, 0], ...DIRS, ...ring2.slice(0, extra)];
+    let rel = [[0, 0], ...DIRS, ...ring2.slice(0, extra)];
+    if (isHQ) { rel = []; for (let dq = -HQ_RADIUS; dq <= HQ_RADIUS; dq++) for (let dr = -HQ_RADIUS; dr <= HQ_RADIUS; dr++) if (hexDist([0, 0], [dq, dr]) <= HQ_RADIUS) rel.push([dq, dr]); }
     this.tiles = rel.map(([dq, dr]) => [this.center[0] + dq, this.center[1] + dr]);
     this.tileSet = new Set(this.tiles.map(t => key(...t)));
     this.minRing = isHQ ? 2 : 1;
     this.walk = this.tiles.filter(t => hexDist(t, this.center) >= this.minRing);
     this.pathTiles = new Set();
+    this.tint = new Map();
+    this.zones = {};
+    if (isHQ) {
+      for (const z of HQ_ZONES) this.zones[z] = { name: z, tiles: [], desks: [] };
+      for (const t of this.walk) {
+        const L = axial(t[0] - this.center[0], t[1] - this.center[1]);
+        let a = Math.atan2(L.z, L.x) * 180 / Math.PI - 15; a = ((a % 360) + 360) % 360;
+        const z = HQ_ZONES[Math.floor(a / 60)];
+        this.zones[z].tiles.push(t);
+        this.tint.set(key(...t), terrCol.clone().lerp(new THREE.Color(ZONE_COL[z]), 0.1));
+      }
+    }
     for (const k of this.tileSet) tileOwner.set(k, this.id);
     this.group = new THREE.Group(); this.group.position.copy(this.centerPos);
     this.status = data.status || 'Hold';
@@ -532,9 +613,10 @@ class Territory {
     if (MODELS[sector]) { const m = MODELS[sector].clone(); this.group.add(m); info = { radius: 1.3, height: 1.5 }; }
     else info = buildSector(b, sector, acc, r);
     this.info = info;
+    this.pois = { crates: [], solar: [], trees: [] };
+    if (this.isHQ) { this.buildZones(b, r); b.build(this.group, { territoryId: this.id }); this.buildBorder(); this.makePlate(info); return; }
     // prop tiles
     const ringTiles = this.walk.slice().sort(() => r() - .5);
-    this.pois = { crates: [], solar: [], trees: [] };
     const kinds = ['crates', 'solar', 'trees', 'trees', 'solar', 'crates', 'trees', 'path', 'trees', 'path', 'trees', 'path'];
     ringTiles.forEach((t, i) => {
       const kind = kinds[i % kinds.length], L = this.local(t);
@@ -558,7 +640,9 @@ class Territory {
     this.buildBorder();
     // trucks
     if (info.trucks) for (let i = 0; i < 2; i++) this.vehicles.push(makeTruck(this, i));
-    // nameplate
+    this.makePlate(info);
+  }
+  makePlate(info) {
     const el = document.createElement('div');
     el.className = 'plate' + (this.isHQ ? ' hq' : '');
     el.addEventListener('click', e => { e.stopPropagation(); selectTerritory(this.id); });
@@ -568,8 +652,26 @@ class Territory {
     this.group.add(this.plate);
     this.updatePlate();
   }
+  buildZones(b, r) {
+    for (const z of HQ_ZONES) {
+      const zone = this.zones[z]; if (!zone.tiles.length) continue;
+      const anchor = zone.tiles.reduce((v, t) => v.add(this.local(t)), new THREE.Vector3()).multiplyScalar(1 / zone.tiles.length);
+      anchor.y = 0;
+      const u = anchor.clone().normalize(), tg = new THREE.Vector3(-u.z, 0, u.x);
+      zone.anchor = anchor.clone().add(this.centerPos);
+      zone.desks = buildZone(b, z, anchor, u, tg, r).map(d => ({ pos: d.pos.add(this.centerPos), face: d.face.add(this.centerPos) }));
+      addPath(b, u.clone().multiplyScalar(this.info.radius * 0.9), anchor.clone().sub(u.clone().multiplyScalar(0.9)));
+      const outer = zone.tiles.filter(t => hexDist(t, this.center) === HQ_RADIUS);
+      if (outer.length) { const t = outer[Math.floor(r() * outer.length)], L = this.local(t); addTree(b, L.x, L.z, r, 0.9 + r() * 0.4); }
+      const el = document.createElement('div'); el.className = 'zone'; el.textContent = z;
+      el.style.borderColor = hexToCss(ZONE_COL[z]);
+      el.addEventListener('click', e => { e.stopPropagation(); selectTerritory(this.id); });
+      const o = new CSS2DObject(el); o.position.set(anchor.x, 1.25, anchor.z); this.group.add(o);
+    }
+  }
   buildBorder() {
     if (this.border) { this.group.remove(this.border, this.glow); }
+    const dashed = !!this.data.acquisition;
     const lines = [], glows = [];
     for (const t of this.tiles) {
       const c = this.local(t);
@@ -579,9 +681,14 @@ class Territory {
         const p1 = new THREE.Vector3(Math.cos(a - Math.PI / 6), 0, Math.sin(a - Math.PI / 6)).multiplyScalar(HEX * 0.97).add(c);
         const p2 = new THREE.Vector3(Math.cos(a + Math.PI / 6), 0, Math.sin(a + Math.PI / 6)).multiplyScalar(HEX * 0.97).add(c);
         const mid = p1.clone().add(p2).multiplyScalar(.5), len = p1.distanceTo(p2) + 0.06, ry = Math.atan2(p2.x - p1.x, p2.z - p1.z);
-        lines.push(G.box.clone().applyMatrix4(mat4(mid.x, 0.04, mid.z, 0, ry, 0, 0.09, 0.06, len)));
         const inward = c.clone().sub(mid).setY(0).normalize().multiplyScalar(0.12);
-        glows.push(new THREE.PlaneGeometry(1, 1).applyMatrix4(mat4(mid.x + inward.x, 0.05, mid.z + inward.z, -Math.PI / 2, 0, ry, 0.45, len, 1)));
+        // pipeline acquisitions get a dashed border (3 dashes per edge) until IC approves
+        const segs = dashed ? [[1 / 6, 0.22], [0.5, 0.22], [5 / 6, 0.22]] : [[0.5, 1]];
+        for (const [f, l] of segs) {
+          const m = p1.clone().lerp(p2, f);
+          lines.push(G.box.clone().applyMatrix4(mat4(m.x, 0.04, m.z, 0, ry, 0, 0.09, 0.06, len * l)));
+          glows.push(new THREE.PlaneGeometry(1, 1).applyMatrix4(mat4(m.x + inward.x, 0.05, m.z + inward.z, -Math.PI / 2, 0, ry, 0.45, len * l, 1)));
+        }
       });
     }
     this.borderMat = new THREE.MeshBasicMaterial({ color: this.color, toneMapped: false });
@@ -592,10 +699,12 @@ class Territory {
   }
   updatePlate() {
     const d = this.data;
-    this.plateEl.innerHTML = this.isHQ ? `<b>Jean Capital</b><span>Head office</span>` : `<b>${esc(d.name)}</b><span>${esc(d.city)}</span>`;
+    this.plateEl.innerHTML = this.isHQ ? `<b>Jean Capital</b><span>Head office</span>` : `<b>${esc(d.name)}</b><span>${esc(d.city)}${d.acquisition ? ' · pipeline, awaiting IC' : ''}</span>`;
   }
   setData(d) {
+    const wasAcq = !!this.data.acquisition;
     this.data = d;
+    if (wasAcq !== !!d.acquisition) this.buildBorder();
     if (d.status !== this.status) {
       this.status = d.status;
       this.targetColor.set(STATUS_COL[d.status] ?? 0x999999);
@@ -676,6 +785,11 @@ const STATUS_ICON = {
   idle: ['·', '#a7aab1'], working: ['✎', '#6fe0a6'], reviewing: ['✓', '#9ab8ff'], drafting: ['✎', '#6fe0a6'],
   submitted: ['↑', '#ffd479'], rework: ['!', '#ff8a80'], travelling: ['→', '#ffd479'], meeting: ['•', '#c9b6ff'],
 };
+function zoneFor(p) {
+  const k = activityKind(p.activity);
+  if (k === 'meeting' || /\bIC\b/.test(p.task_title || '')) return 'IC room';
+  return ROLE_ZONE[p.role] ?? null;
+}
 function activityKind(a) {
   a = (a || 'idle').toLowerCase();
   if (a.includes('travel')) return 'travelling';
@@ -688,11 +802,13 @@ function activityKind(a) {
 }
 
 class Avatar {
-  constructor({ terrId, role = null, person = null, staffType = 'pm', seed = 1 }) {
+  constructor(opts) {
+    const { terrId, role = null, person = null, staffType = 'pm', seed = 1 } = opts;
     this.r = rng(seed);
     this.person = person; this.role = role; this.terrId = terrId;
     this.queue = []; this.action = null; this.speed = 0.55 + this.r() * 0.15;
     this.travelling = false; this.carrying = false; this.partner = null;
+    this.zone = person ? zoneFor(person) : (opts.zone ?? null);
     const g = this.group = new THREE.Group();
     const s = person ? 1.25 : 1;
     g.scale.setScalar(s);
@@ -720,7 +836,7 @@ class Avatar {
       this.statEl = el; this.stat = new CSS2DObject(el); this.stat.position.set(0, 0.72, 0); g.add(this.stat);
     }
     const terr = territories.get(terrId);
-    const t = terr.randomWalkTile(this.r); const p = terr.tilePos(t);
+    const zt = this.walkTiles(terr); const t = zt[Math.floor(this.r() * zt.length)]; const p = terr.tilePos(t);
     g.position.set(p.x + (this.r() - .5) * .6, TOP_TERR, p.z + (this.r() - .5) * .6);
     g.rotation.y = this.r() * Math.PI * 2;
     this.phase = this.r() * 10;
@@ -728,6 +844,18 @@ class Avatar {
     this.updateStat();
   }
   get terr() { return territories.get(this.terrId); }
+  walkTiles(terr = this.terr) { return (terr.isHQ && this.zone && terr.zones[this.zone]?.tiles.length) ? terr.zones[this.zone].tiles : terr.walk; }
+  deskSpot() {
+    const terr = this.terr; if (!terr?.isHQ || !this.zone) return null;
+    const ds = terr.zones[this.zone].desks; if (!ds.length) return null;
+    const i = this.person ? hashStr(this.person.id) % ds.length : Math.floor(this.r() * ds.length);   // core people keep their own desk
+    return ds[i];
+  }
+  setZone(z) {
+    if (z === this.zone) return;
+    this.zone = z;
+    if (this.terr?.isHQ && !this.travelling) { if (this.partner) { this.partner.partner = null; this.partner = null; } this.queue = []; this.action = null; }
+  }
   updateStat() {
     if (!this.statEl) return;
     const kind = this.travelling ? 'travelling' : activityKind(this.person.activity);
@@ -747,17 +875,24 @@ class Avatar {
     const busy = this.person && activityKind(this.person.activity) !== 'idle';
     const x = r();
     const wWork = busy ? 0.5 : 0.25;
-    if (x < wWork) {
-      const spot = terr.workSpot(r);
-      this.walkRoute(spot);
-      this.queue.push({ type: 'work', dur: 4 + r() * 6, face: terr.centerPos.clone() });
+    const desk = this.deskSpot();
+    if (x < wWork + (desk ? 0.15 : 0)) {
+      if (desk) { this.walkRoute(desk.pos); this.queue.push({ type: 'work', dur: 5 + r() * 8, face: desk.face.clone() }); }
+      else { const spot = terr.workSpot(r); this.walkRoute(spot); this.queue.push({ type: 'work', dur: 4 + r() * 6, face: terr.centerPos.clone() }); }
+    } else if (desk && this.zone !== 'IC room' && x < wWork + 0.3) {
+      // carry a document crate from own desk to another zone's desk
+      const others = HQ_ZONES.filter(z => z !== this.zone && z !== 'IC room' && terr.zones[z].desks.length);
+      const dz = terr.zones[others[Math.floor(r() * others.length)]];
+      const dd = dz.desks[Math.floor(r() * dz.desks.length)];
+      this.walkRoute(desk.pos); this.queue.push({ type: 'pickup', dur: 0.7 });
+      this.walkRoute(dd.pos); this.queue.push({ type: 'drop', dur: 0.6 });
     } else if (x < wWork + 0.2 && terr.pois.crates.length) {
       const src = terr.tilePos(terr.pois.crates[Math.floor(r() * terr.pois.crates.length)]);
       const dests = [...terr.pois.solar.map(t => terr.tilePos(t)), terr.workSpot(r)];
       this.walkRoute(src); this.queue.push({ type: 'pickup', dur: 0.7 });
       this.walkRoute(dests[Math.floor(r() * dests.length)]); this.queue.push({ type: 'drop', dur: 0.6 });
     } else if (x < wWork + 0.35) {
-      const partner = avatars.find(a => a !== this && a.terrId === this.terrId && !a.travelling && !a.partner && a.queue.length < 2 && r() < 0.6);
+      const partner = avatars.find(a => a !== this && a.terrId === this.terrId && a.zone === this.zone && !a.travelling && !a.partner && a.queue.length < 2 && r() < 0.6);
       if (partner) {
         const mid = this.group.position.clone().lerp(partner.group.position, 0.5);
         const tile = terr.nearestWalk(mid); const mp = terr.tilePos(tile);
@@ -772,8 +907,9 @@ class Avatar {
     } else {
       const hops = 1 + Math.floor(r() * 3);
       let cur = terr.nearestWalk(this.group.position);
+      const allowed = new Set(this.walkTiles(terr).map(t => key(...t)));
       for (let i = 0; i < hops; i++) {
-        const opts = DIRS.map(d => [cur[0] + d[0], cur[1] + d[1]]).filter(n => terr.tileSet.has(key(...n)) && hexDist(n, terr.center) >= terr.minRing);
+        const opts = DIRS.map(d => [cur[0] + d[0], cur[1] + d[1]]).filter(n => allowed.has(key(...n)));
         if (!opts.length) break; cur = opts[Math.floor(r() * opts.length)];
         const p = terr.tilePos(cur); p.x += (r() - .5) * .5; p.z += (r() - .5) * .5; this.walkTo(p);
       }
@@ -873,13 +1009,17 @@ function feed(msg) {
 const assetName = id => id === HQ_ID ? 'HQ' : (STATE.assets.find(a => a.id === id)?.name ?? id);
 
 function autoPlace(asset) {
-  const taken = new Set([...territories.values()].map(t => key(...t.center)));
+  // nearest free spot to the country's region, clear of every territory (HQ is radius 4, assets radius 2) by a 2-hex gap
   const base = asset.country === 'Korea' ? [9, 0] : [-10, 0];
-  for (let ring = 0; ring < 6; ring++) for (let dq = -ring * 4; dq <= ring * 4; dq += 4) for (let dr = -ring * 5; dr <= ring * 5; dr += 5) {
-    const c = [base[0] + dq, base[1] + dr];
-    if (![...taken].some(k => hexDist(k.split(',').map(Number), c) < 5)) return { q: c[0], r: c[1] };
+  const ok = c => [...territories.values()].every(t => hexDist(c, t.center) >= (t.isHQ ? HQ_RADIUS : 2) + 2 + 2);
+  for (let d = 0; d < 14; d++) {
+    const ring = [];
+    for (let dq = -d; dq <= d; dq++) for (let dr = -d; dr <= d; dr++) if (hexDist([0, 0], [dq, dr]) === d) ring.push([base[0] + dq, base[1] + dr]);
+    const bw = axial(...base);
+    ring.sort((a, b) => axial(...a).distanceTo(bw) - axial(...b).distanceTo(bw));
+    for (const c of ring) { const x = axial(...c).x; if (ok(c) && Math.abs(x) <= 24 && (asset.country === 'Korea' ? x >= 11 : x <= -11)) return { q: c[0], r: c[1] }; }
   }
-  return { q: base[0], r: base[1] };
+  return { q: base[0], r: base[1] + 12 };
 }
 
 function applyState(s) {
@@ -918,6 +1058,8 @@ function applyState(s) {
       if (!firstLoad) { msgs.push(`${p.name} (${p.role}) joined`); if (dest !== HQ_ID) av.travelTo(dest); }
     } else {
       av.person = { ...p };
+      const nz = zoneFor(p);
+      if (nz !== av.zone) { if (nz === 'IC room' && dest === HQ_ID) msgs.push(`${p.name} to the IC room`); av.setZone(nz); }
       if (dest !== av.terrId && !(av.travelling && av.queue.some(q => q.id === dest))) {
         av.travelTo(dest);
         msgs.push(`${p.name} heading to ${assetName(dest)}`);
@@ -963,7 +1105,14 @@ function spawnAmbient() {
   for (const [id, t] of territories) {
     const have = avatars.filter(a => !a.person && a.terrId === id).length;
     const r = rng(hashStr(id) ^ 99);
-    const want = IS_PHONE ? 1 + Math.floor(r() * 2) : (id === HQ_ID ? 4 : 3 + Math.floor(r() * 4));
+    if (t.isHQ) {
+      // office staff in their zones (decorative, no Notion data)
+      const roster = ['Investments', 'Finance', 'Tax', 'IR & Marketing', 'Investments', 'Finance', 'IR & Marketing', 'Leadership', 'Tax'];
+      const want = IS_PHONE ? 4 : roster.length;
+      for (let i = have; i < want; i++) avatars.push(new Avatar({ terrId: id, staffType: 'office', zone: roster[i], seed: hashStr(id + i) }));
+      continue;
+    }
+    const want = IS_PHONE ? 1 + Math.floor(r() * 2) : 3 + Math.floor(r() * 4);
     for (let i = have; i < want; i++) {
       const av = new Avatar({ terrId: id, staffType: r() < 0.5 ? 'contractor' : 'pm', seed: hashStr(id + i) });
       avatars.push(av);
@@ -1026,7 +1175,9 @@ function refreshPanel() {
     const staff = avatars.filter(a => !a.person && a.terrId === t.id).length;
     if (t.isHQ) {
       panelBody.innerHTML = `<h3>Jean Capital</h3><div class="k">Head office · HQ</div>
-        <dl><dt>People here</dt><dd>${here}</dd><dt>Site staff</dt><dd>${staff} (decorative)</dd><dt>Assets</dt><dd>${STATE.assets.length}</dd></dl>
+        <dl><dt>People here</dt><dd>${here}</dd><dt>Office staff</dt><dd>${staff} (decorative)</dd>
+        <dt>Assets</dt><dd>${STATE.assets.filter(a => !a.acquisition).length} held · ${STATE.assets.filter(a => a.acquisition).length} pipeline</dd>
+        <dt>Zones</dt><dd>${HQ_ZONES.map(esc).join(' · ')}</dd></dl>
         <a class="btn" href="${NOTION_HOME}" target="_blank" rel="noopener">Open intranet in Notion ↗</a>`;
     } else {
       const d = t.data;
@@ -1034,6 +1185,7 @@ function refreshPanel() {
         <dl><dt>Sector</dt><dd>${esc(d.sector)}</dd>
         <dt>상태</dt><dd><span class="pill" style="background:${hexToCss(STATUS_COL[d.status] ?? 0x999999)}">${esc(d.status)}</span></dd>
         <dt>NIY</dt><dd>${fmtPct(d.niy)}</dd><dt>공실률</dt><dd>${fmtPct(d.vacancy)}</dd><dt>WAULT</dt><dd>${fmtYrs(d.wault)}</dd>
+        <dt>Stage</dt><dd>${d.acquisition ? 'Pipeline: acquisition screen, awaiting IC' : 'Held asset'}</dd>
         <dt>Next event</dt><dd>${esc(d.next_event ?? '—')}</dd><dt>People here</dt><dd>${here}</dd><dt>Site staff</dt><dd>${staff} (decorative)</dd></dl>
         ${d.notion_url ? `<a class="btn" href="${esc(d.notion_url)}" target="_blank" rel="noopener">Open in Notion ↗</a>` : ''}`;
     }
@@ -1146,7 +1298,7 @@ document.getElementById('clock').textContent = 'Simulated firm · ' + nowKST() +
   if (!STATE.assets.length) { buildGround(); placeRegionLabels(); spawnAmbient(); }
   buildRocks();
   setInterval(poll, 60000);
-  window.__world = { territories, avatars, people, applyState, glide };   // debug hook
+  window.__world = { territories, avatars, people, applyState, glide, camera, controls };   // debug hook
   requestAnimationFrame(frame);
 })();
 </script>
